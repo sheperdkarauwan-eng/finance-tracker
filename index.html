@@ -435,6 +435,8 @@
   var CAT_MAP = {};
   CATEGORIES.forEach(function(c){ CAT_MAP[c.key] = c; });
 
+  // Do not rename these keys or the deployed URL/path - user data lives in
+  // localStorage keyed to both, and renaming either orphans existing data.
   var LS_TX = 'pft_transactions_v1';
   var LS_SAV = 'pft_savings_v1';
   var LS_RATE = 'pft_rate_v1';
