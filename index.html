@@ -280,6 +280,7 @@
 
         <label>Note (optional)</label>
         <input type="text" id="noteInput" placeholder="e.g. portable AC, heat wave">
+        <div id="categoryHint" style="display:none;font-size:11.5px;color:var(--accent2);margin-top:6px;"></div>
 
         <button class="btn-primary" id="saveTx">Save</button>
       </div>
@@ -569,6 +570,8 @@
 
   // ---------- Add transaction ----------
   var catGrid = document.getElementById('catGrid');
+  var userOverrodeCategory = false;
+
   function renderCatGrid(){
     catGrid.innerHTML='';
     CATEGORIES.forEach(function(c){
@@ -577,12 +580,62 @@
       btn.innerHTML = '<span class="emoji">'+c.emoji+'</span>'+c.label;
       btn.addEventListener('click', function(){
         state.selectedCategory = c.key;
+        userOverrodeCategory = true;
         renderCatGrid();
       });
       catGrid.appendChild(btn);
     });
   }
   renderCatGrid();
+
+  // ---------- Auto-categorize recurring merchants ----------
+  function normalizeNote(s){
+    return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  function suggestCategoryForNote(note){
+    var norm = normalizeNote(note);
+    if(norm.length < 3) return null;
+    var counts = {}, total = 0;
+    state.transactions.forEach(function(t){
+      if(t.type !== 'expense' || !t.note) return;
+      var tn = normalizeNote(t.note);
+      if(tn.length < 3) return;
+      if(tn.indexOf(norm) !== -1 || norm.indexOf(tn) !== -1){
+        counts[t.category] = (counts[t.category] || 0) + 1;
+        total++;
+      }
+    });
+    if(total === 0) return null;
+    var best = null, bestCount = 0;
+    Object.keys(counts).forEach(function(c){
+      if(counts[c] > bestCount){ bestCount = counts[c]; best = c; }
+    });
+    return { category: best, matches: total };
+  }
+
+  var categoryHintTimer = null;
+  document.getElementById('noteInput').addEventListener('input', function(){
+    clearTimeout(categoryHintTimer);
+    var hint = document.getElementById('categoryHint');
+    if(state.txType !== 'expense' || userOverrodeCategory){
+      hint.style.display = 'none';
+      return;
+    }
+    var noteVal = this.value;
+    categoryHintTimer = setTimeout(function(){
+      var suggestion = suggestCategoryForNote(noteVal);
+      if(suggestion && CAT_MAP[suggestion.category]){
+        state.selectedCategory = suggestion.category;
+        renderCatGrid();
+        var c = CAT_MAP[suggestion.category];
+        hint.textContent = '💡 Auto-categorized as ' + c.emoji + ' ' + c.label + ' (matched ' + suggestion.matches + ' past ' + (suggestion.matches===1 ? 'entry' : 'entries') + ') — tap a category to override';
+        hint.style.display = 'block';
+      } else {
+        hint.style.display = 'none';
+      }
+    }, 250);
+  });
 
   function setTxType(type){
     state.txType = type;
@@ -591,6 +644,8 @@
     document.getElementById('categoryPicker').style.display = type==='expense' ? 'block' : 'none';
     document.getElementById('sourceLabel').style.display = type==='income' ? 'block' : 'none';
     document.getElementById('sourceInput').style.display = type==='income' ? 'block' : 'none';
+    userOverrodeCategory = false;
+    document.getElementById('categoryHint').style.display = 'none';
   }
   document.getElementById('typeExpense').addEventListener('click', function(){ setTxType('expense'); });
   document.getElementById('typeIncome').addEventListener('click', function(){ setTxType('income'); });
@@ -613,6 +668,8 @@
     document.getElementById('amountInput').value='';
     document.getElementById('noteInput').value='';
     document.getElementById('sourceInput').value='';
+    userOverrodeCategory = false;
+    document.getElementById('categoryHint').style.display = 'none';
     if(state.txType==='income'){
       pendingSuggestion = buildIncomeSuggestion(amount);
     }
