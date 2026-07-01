@@ -182,14 +182,14 @@
 <div id="app">
 
   <header class="top">
-    <h1 id="headerTitle">Dashboard</h1>
-    <div class="sub" id="headerSub">Your money, at a glance</div>
+    <h1 id="headerTitle">Add transaction</h1>
+    <div class="sub" id="headerSub">Log income or an expense</div>
   </header>
 
   <main>
 
     <!-- DASHBOARD -->
-    <section class="view active" id="view-dashboard">
+    <section class="view" id="view-dashboard">
       <div class="curr-toggle">
         <button id="btnEUR" class="active">EUR (€)</button>
         <button id="btnIDR">IDR (Rp)</button>
@@ -257,7 +257,7 @@
     </section>
 
     <!-- ADD -->
-    <section class="view" id="view-add">
+    <section class="view active" id="view-add">
       <div class="card">
         <div class="type-toggle">
           <button id="typeExpense" class="active expense">− Expense</button>
@@ -410,8 +410,8 @@
 
   <nav class="bottom">
     <div class="inner">
-      <button data-view="dashboard" class="active"><span class="ic">📊</span>Home</button>
-      <button data-view="add"><span class="ic">➕</span>Add</button>
+      <button data-view="dashboard"><span class="ic">📊</span>Home</button>
+      <button data-view="add" class="active"><span class="ic">➕</span>Add</button>
       <button data-view="history"><span class="ic">📜</span>History</button>
       <button data-view="recap"><span class="ic">🗓️</span>Recap</button>
       <button data-view="savings"><span class="ic">🎯</span>Savings</button>
@@ -1130,7 +1130,7 @@
 
   // ---------- Init ----------
   fetchRate();
-  renderDashboard();
+  showView('add');
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function(){
