@@ -32,16 +32,18 @@ self.addEventListener('fetch', function(event) {
   var url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return; // let cross-origin (fonts, Chart.js, rate API) hit the network directly
 
+  // Network-first: always serve the latest version when online, so a
+  // pushed update shows up immediately. Only fall back to the cached
+  // copy when there's no connection (offline use).
   event.respondWith(
-    caches.match(event.request).then(function(cached) {
-      var networkFetch = fetch(event.request).then(function(response) {
-        if (response && response.status === 200) {
-          var copy = response.clone();
-          caches.open(CACHE).then(function(cache) { cache.put(event.request, copy); });
-        }
-        return response;
-      }).catch(function() { return cached; });
-      return cached || networkFetch;
+    fetch(event.request).then(function(response) {
+      if (response && response.status === 200) {
+        var copy = response.clone();
+        caches.open(CACHE).then(function(cache) { cache.put(event.request, copy); });
+      }
+      return response;
+    }).catch(function() {
+      return caches.match(event.request);
     })
   );
 });
