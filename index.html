@@ -411,6 +411,37 @@
       </div>
     </section>
 
+    <!-- LOANS -->
+    <section class="view" id="view-loans">
+      <div class="card">
+        <h2>Record a loan or repayment</h2>
+        <div class="type-toggle">
+          <button id="loanTypeLent" class="active expense">Lent money</button>
+          <button id="loanTypeRepaid" class="income">Got repaid</button>
+        </div>
+        <label style="margin-top:0;">Person</label>
+        <select id="loanPersonSelect"></select>
+        <input type="text" id="loanNewPersonName" placeholder="Name" style="display:none;margin-top:8px;">
+        <label>Amount (EUR)</label>
+        <input type="number" id="loanAmount" inputmode="decimal" step="0.01" placeholder="0.00">
+        <label>Date</label>
+        <input type="date" id="loanDate">
+        <label>Note (optional)</label>
+        <input type="text" id="loanNote" placeholder="e.g. dinner split, rent help">
+        <button class="btn-primary" id="saveLoan">Save</button>
+      </div>
+
+      <div class="card">
+        <h2>Who owes you</h2>
+        <div id="loanPeopleList"></div>
+      </div>
+
+      <div class="card">
+        <h2>Loan history</h2>
+        <div id="loanHistoryList"></div>
+      </div>
+    </section>
+
     <!-- SETTINGS -->
     <section class="view" id="view-settings">
       <div class="card">
@@ -481,6 +512,7 @@
       <button data-view="add" class="active"><span class="ic">➕</span>Add</button>
       <button data-view="history"><span class="ic">📜</span>History</button>
       <button data-view="savings"><span class="ic">🎯</span>Savings</button>
+      <button data-view="loans"><span class="ic">🤝</span>Loans</button>
       <button data-view="settings"><span class="ic">⚙️</span>Settings</button>
     </div>
   </nav>
@@ -519,6 +551,8 @@
   var LS_TRANSFERS = 'pft_transfers_v1';
   var LS_SAVACC = 'pft_savings_accounts_v1';
   var LS_SAVACC_ENTRIES = 'pft_savings_account_entries_v1';
+  var LS_LOAN_PEOPLE = 'pft_loan_people_v1';
+  var LS_LOAN_ENTRIES = 'pft_loan_entries_v1';
 
   var DEFAULT_BUDGETS = {};
   CATEGORIES.forEach(function(c){ DEFAULT_BUDGETS[c.key] = 0; });
@@ -543,6 +577,8 @@
     transfers: load(LS_TRANSFERS, []),
     savingsAccounts: load(LS_SAVACC, []),
     savingsAccountEntries: load(LS_SAVACC_ENTRIES, []),
+    loanPeople: load(LS_LOAN_PEOPLE, []),
+    loanEntries: load(LS_LOAN_ENTRIES, []),
     currency: load(LS_CURR, 'EUR'),
     txType: 'expense',
     txAccount: 'bank',
@@ -591,8 +627,8 @@
   }
 
   // ---------- Navigation ----------
-  var views = ['dashboard','add','history','savings','settings'];
-  var titles = {dashboard:['Dashboard','Your money, at a glance'], add:['Add transaction','Log income or an expense'], history:['History','All your transactions'], savings:['Savings goal','€20,000 for your masters'], settings:['Settings','Rates, goal & backup']};
+  var views = ['dashboard','add','history','savings','loans','settings'];
+  var titles = {dashboard:['Dashboard','Your money, at a glance'], add:['Add transaction','Log income or an expense'], history:['History','All your transactions'], savings:['Savings goal','€20,000 for your masters'], loans:['Loans','Money out, and money back'], settings:['Settings','Rates, goal & backup']};
 
   function showView(name){
     views.forEach(function(v){
@@ -606,6 +642,7 @@
     if(name==='dashboard') renderDashboard();
     if(name==='history') setHistoryTab(historyTab);
     if(name==='savings') renderSavings();
+    if(name==='loans') renderLoans();
     if(name==='settings') renderSettings();
   }
   document.querySelectorAll('nav.bottom button').forEach(function(b){
@@ -1311,6 +1348,91 @@
     }).join('');
   }
 
+  // ---------- Loans (money people borrow from you) ----------
+  var loanType = 'lent';
+  function setLoanType(type){
+    loanType = type;
+    document.getElementById('loanTypeLent').classList.toggle('active', type==='lent');
+    document.getElementById('loanTypeRepaid').classList.toggle('active', type==='repaid');
+  }
+  document.getElementById('loanTypeLent').addEventListener('click', function(){ setLoanType('lent'); });
+  document.getElementById('loanTypeRepaid').addEventListener('click', function(){ setLoanType('repaid'); });
+  setLoanType('lent');
+  document.getElementById('loanDate').value = todayStr();
+
+  function personTotal(personId){
+    return state.loanEntries
+      .filter(function(e){ return e.personId===personId; })
+      .reduce(function(a,e){ return a + (e.type==='lent' ? e.amount : -e.amount); }, 0);
+  }
+
+  function populateLoanPersonSelect(){
+    var sel = document.getElementById('loanPersonSelect');
+    var prevVal = sel.value;
+    var options = state.loanPeople.map(function(p){ return '<option value="'+p.id+'">'+escapeHtml(p.name)+'</option>'; }).join('');
+    sel.innerHTML = options + '<option value="__new__">+ New person</option>';
+    if(state.loanPeople.some(function(p){ return p.id===prevVal; })) sel.value = prevVal;
+  }
+  document.getElementById('loanPersonSelect').addEventListener('change', function(){
+    document.getElementById('loanNewPersonName').style.display = this.value==='__new__' ? 'block' : 'none';
+  });
+
+  document.getElementById('saveLoan').addEventListener('click', function(){
+    var amount = parseFloat(document.getElementById('loanAmount').value);
+    if(isNaN(amount) || amount<=0){ toast('Enter a valid amount'); return; }
+    var date = document.getElementById('loanDate').value || todayStr();
+    var note = document.getElementById('loanNote').value.trim();
+    var personId = document.getElementById('loanPersonSelect').value;
+
+    if(personId === '__new__' || !personId){
+      var name = document.getElementById('loanNewPersonName').value.trim();
+      if(!name){ toast('Enter a name'); return; }
+      personId = uid();
+      state.loanPeople.push({ id: personId, name: name });
+      save(LS_LOAN_PEOPLE, state.loanPeople);
+    }
+
+    state.loanEntries.push({ id: uid(), personId: personId, type: loanType, amount: amount, date: date, note: note });
+    save(LS_LOAN_ENTRIES, state.loanEntries);
+
+    document.getElementById('loanAmount').value = '';
+    document.getElementById('loanNote').value = '';
+    document.getElementById('loanNewPersonName').value = '';
+    document.getElementById('loanNewPersonName').style.display = 'none';
+    toast(loanType==='lent' ? 'Loan recorded' : 'Repayment recorded');
+    renderLoans();
+  });
+
+  function renderLoans(){
+    populateLoanPersonSelect();
+
+    var peopleBox = document.getElementById('loanPeopleList');
+    if(state.loanPeople.length===0){
+      peopleBox.innerHTML = '<div class="empty">No one owes you money yet</div>';
+    } else {
+      peopleBox.innerHTML = state.loanPeople.map(function(p){
+        var owed = personTotal(p.id);
+        var statusColor = owed>0 ? 'var(--warn)' : 'var(--accent)';
+        var statusText = owed>0 ? fmt(owed)+' owed' : (owed<0 ? fmt(Math.abs(owed))+' overpaid' : 'Settled up ✓');
+        return '<div class="acc-card"><div class="top"><span class="name">'+escapeHtml(p.name)+'</span></div>'+
+          '<div class="amt" style="color:'+statusColor+';">'+statusText+'</div>'+
+        '</div>';
+      }).join('');
+    }
+
+    var histBox = document.getElementById('loanHistoryList');
+    var peopleNames = {};
+    state.loanPeople.forEach(function(p){ peopleNames[p.id] = p.name; });
+    var list = state.loanEntries.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+    if(list.length===0){ histBox.innerHTML = '<div class="empty">No loan entries yet</div>'; return; }
+    histBox.innerHTML = list.map(function(e){
+      var name = peopleNames[e.personId] || 'Unknown';
+      var cls = e.type==='lent' ? 'neg' : 'pos';
+      var sign = e.type==='lent' ? '−' : '+';
+      return '<div class="sav-item"><span>'+e.date+' · '+escapeHtml(name)+(e.note? ' · '+escapeHtml(e.note):'')+'</span><span class="amt '+cls+'">'+sign+fmt(e.amount)+'</span></div>';
+    }).join('');
+  }
+
   // ---------- Settings ----------
   function renderBudgetInputs(){
     var box = document.getElementById('budgetInputs');
@@ -1395,7 +1517,7 @@
   });
 
   document.getElementById('exportBtn').addEventListener('click', function(){
-    var data = { transactions: state.transactions, savings: state.savings, goal: state.goal, budgets: state.budgets, accounts: state.accounts, transfers: state.transfers, savingsAccounts: state.savingsAccounts, savingsAccountEntries: state.savingsAccountEntries, rate: state.rate };
+    var data = { transactions: state.transactions, savings: state.savings, goal: state.goal, budgets: state.budgets, accounts: state.accounts, transfers: state.transfers, savingsAccounts: state.savingsAccounts, savingsAccountEntries: state.savingsAccountEntries, loanPeople: state.loanPeople, loanEntries: state.loanEntries, rate: state.rate };
     document.getElementById('exportBox').value = JSON.stringify(data, null, 2);
     toast('Exported below — copy it somewhere safe');
   });
@@ -1410,6 +1532,8 @@
       if(data.transfers) { state.transfers = data.transfers; save(LS_TRANSFERS, state.transfers); }
       if(data.savingsAccounts) { state.savingsAccounts = data.savingsAccounts; save(LS_SAVACC, state.savingsAccounts); }
       if(data.savingsAccountEntries) { state.savingsAccountEntries = data.savingsAccountEntries; save(LS_SAVACC_ENTRIES, state.savingsAccountEntries); }
+      if(data.loanPeople) { state.loanPeople = data.loanPeople; save(LS_LOAN_PEOPLE, state.loanPeople); }
+      if(data.loanEntries) { state.loanEntries = data.loanEntries; save(LS_LOAN_ENTRIES, state.loanEntries); }
       if(data.rate) { state.rate = data.rate; save(LS_RATE, state.rate); }
       toast('Data imported');
       renderSettings();
@@ -1426,6 +1550,8 @@
       localStorage.removeItem(LS_TRANSFERS);
       localStorage.removeItem(LS_SAVACC);
       localStorage.removeItem(LS_SAVACC_ENTRIES);
+      localStorage.removeItem(LS_LOAN_PEOPLE);
+      localStorage.removeItem(LS_LOAN_ENTRIES);
       location.reload();
     }
   });
