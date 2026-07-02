@@ -539,7 +539,7 @@
     rate: load(LS_RATE, {rate: 17300, updatedAt: null}),
     goal: load(LS_GOAL, {target:20000, milestoneAmt:10000, milestoneDate:'2027-05-01', finalDate:'2027-09-01'}),
     budgets: load(LS_BUDGETS, DEFAULT_BUDGETS),
-    accounts: load(LS_ACCOUNTS, {bank: 0, cash: 0, asOfDate: null}),
+    accounts: load(LS_ACCOUNTS, {bank: 0, cash: 0, asOfDate: null, asOfTs: null}),
     transfers: load(LS_TRANSFERS, []),
     savingsAccounts: load(LS_SAVACC, []),
     savingsAccountEntries: load(LS_SAVACC_ENTRIES, []),
@@ -552,15 +552,18 @@
   function computeBalances(){
     var bank = state.accounts.bank || 0;
     var cash = state.accounts.cash || 0;
-    var asOf = state.accounts.asOfDate;
+    // Use the moment the balance was set (asOfTs, a timestamp), not the
+    // transaction's chosen date - comparing by date alone would double-count
+    // anything already logged earlier the same day the balance was set.
+    var asOfTs = state.accounts.asOfTs || 0;
     state.transactions.forEach(function(t){
-      if(asOf && t.date < asOf) return;
+      if((t.createdAt || 0) < asOfTs) return;
       var acct = t.account || 'bank';
       var sign = t.type === 'income' ? 1 : -1;
       if(acct === 'cash') cash += sign * t.amount; else bank += sign * t.amount;
     });
     state.transfers.forEach(function(tr){
-      if(asOf && tr.date < asOf) return;
+      if((tr.createdAt || 0) < asOfTs) return;
       if(tr.direction === 'toCash'){ bank -= tr.amount; cash += tr.amount; }
       else { cash -= tr.amount; bank += tr.amount; }
     });
@@ -757,7 +760,7 @@
     if(isNaN(amount) || amount<=0){ toast('Enter a valid amount'); return; }
     var date = document.getElementById('dateInput').value || todayStr();
     var note = document.getElementById('noteInput').value.trim();
-    var tx = { id: uid(), type: state.txType, date: date, note: note, amount: amount, account: state.txAccount };
+    var tx = { id: uid(), type: state.txType, date: date, note: note, amount: amount, account: state.txAccount, createdAt: Date.now() };
     if(state.txType==='expense'){
       tx.category = state.selectedCategory;
     } else {
@@ -1345,7 +1348,8 @@
     state.accounts = {
       bank: isNaN(bank) ? 0 : bank,
       cash: isNaN(cash) ? 0 : cash,
-      asOfDate: todayStr()
+      asOfDate: todayStr(),
+      asOfTs: Date.now()
     };
     save(LS_ACCOUNTS, state.accounts);
     toast('Balances updated');
@@ -1356,7 +1360,7 @@
     if(isNaN(amount) || amount<=0){ toast('Enter a valid amount'); return; }
     var direction = document.getElementById('transferDirection').value;
     var note = document.getElementById('transferNote').value.trim();
-    state.transfers.push({ id: uid(), date: todayStr(), amount: amount, direction: direction, note: note });
+    state.transfers.push({ id: uid(), date: todayStr(), amount: amount, direction: direction, note: note, createdAt: Date.now() });
     save(LS_TRANSFERS, state.transfers);
     document.getElementById('transferAmount').value = '';
     document.getElementById('transferNote').value = '';
