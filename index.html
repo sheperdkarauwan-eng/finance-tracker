@@ -422,6 +422,13 @@
         <label style="margin-top:0;">Person</label>
         <select id="loanPersonSelect"></select>
         <input type="text" id="loanNewPersonName" placeholder="Name" style="display:none;margin-top:8px;">
+
+        <label>Account</label>
+        <div class="type-toggle" id="loanAccountToggle">
+          <button id="loanAcctBank" class="active">🏦 Bank</button>
+          <button id="loanAcctCash">💵 Cash</button>
+        </div>
+
         <label>Amount (EUR)</label>
         <input type="number" id="loanAmount" inputmode="decimal" step="0.01" placeholder="0.00">
         <label>Date</label>
@@ -602,6 +609,12 @@
       if((tr.createdAt || 0) < asOfTs) return;
       if(tr.direction === 'toCash'){ bank -= tr.amount; cash += tr.amount; }
       else { cash -= tr.amount; bank += tr.amount; }
+    });
+    state.loanEntries.forEach(function(le){
+      if((le.createdAt || 0) < asOfTs) return;
+      var acct = le.account || 'bank';
+      var sign = le.type === 'repaid' ? 1 : -1; // lending money out = -, getting repaid = +
+      if(acct === 'cash') cash += sign * le.amount; else bank += sign * le.amount;
     });
     return { bank: bank, cash: cash };
   }
@@ -1360,10 +1373,25 @@
   setLoanType('lent');
   document.getElementById('loanDate').value = todayStr();
 
+  var loanAccount = 'bank';
+  function setLoanAccount(acct){
+    loanAccount = acct;
+    document.getElementById('loanAcctBank').classList.toggle('active', acct==='bank');
+    document.getElementById('loanAcctCash').classList.toggle('active', acct==='cash');
+  }
+  document.getElementById('loanAcctBank').addEventListener('click', function(){ setLoanAccount('bank'); });
+  document.getElementById('loanAcctCash').addEventListener('click', function(){ setLoanAccount('cash'); });
+  setLoanAccount('bank');
+
   function personTotal(personId){
     return state.loanEntries
       .filter(function(e){ return e.personId===personId; })
       .reduce(function(a,e){ return a + (e.type==='lent' ? e.amount : -e.amount); }, 0);
+  }
+
+  function updateNewPersonVisibility(){
+    var sel = document.getElementById('loanPersonSelect');
+    document.getElementById('loanNewPersonName').style.display = (sel.value==='__new__' || !sel.value) ? 'block' : 'none';
   }
 
   function populateLoanPersonSelect(){
@@ -1372,10 +1400,9 @@
     var options = state.loanPeople.map(function(p){ return '<option value="'+p.id+'">'+escapeHtml(p.name)+'</option>'; }).join('');
     sel.innerHTML = options + '<option value="__new__">+ New person</option>';
     if(state.loanPeople.some(function(p){ return p.id===prevVal; })) sel.value = prevVal;
+    updateNewPersonVisibility();
   }
-  document.getElementById('loanPersonSelect').addEventListener('change', function(){
-    document.getElementById('loanNewPersonName').style.display = this.value==='__new__' ? 'block' : 'none';
-  });
+  document.getElementById('loanPersonSelect').addEventListener('change', updateNewPersonVisibility);
 
   document.getElementById('saveLoan').addEventListener('click', function(){
     var amount = parseFloat(document.getElementById('loanAmount').value);
@@ -1392,7 +1419,7 @@
       save(LS_LOAN_PEOPLE, state.loanPeople);
     }
 
-    state.loanEntries.push({ id: uid(), personId: personId, type: loanType, amount: amount, date: date, note: note });
+    state.loanEntries.push({ id: uid(), personId: personId, type: loanType, amount: amount, date: date, note: note, account: loanAccount, createdAt: Date.now() });
     save(LS_LOAN_ENTRIES, state.loanEntries);
 
     document.getElementById('loanAmount').value = '';
@@ -1429,7 +1456,8 @@
       var name = peopleNames[e.personId] || 'Unknown';
       var cls = e.type==='lent' ? 'neg' : 'pos';
       var sign = e.type==='lent' ? '−' : '+';
-      return '<div class="sav-item"><span>'+e.date+' · '+escapeHtml(name)+(e.note? ' · '+escapeHtml(e.note):'')+'</span><span class="amt '+cls+'">'+sign+fmt(e.amount)+'</span></div>';
+      var acctLabel = e.account==='cash' ? '💵' : '🏦';
+      return '<div class="sav-item"><span>'+e.date+' · '+acctLabel+' '+escapeHtml(name)+(e.note? ' · '+escapeHtml(e.note):'')+'</span><span class="amt '+cls+'">'+sign+fmt(e.amount)+'</span></div>';
     }).join('');
   }
 
