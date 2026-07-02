@@ -203,11 +203,6 @@
       </div>
       <div class="rate-line" id="rateLine">Loading exchange rate…</div>
 
-      <div class="card">
-        <label style="margin-top:0;">Month</label>
-        <select id="dashboardMonth"></select>
-      </div>
-
       <div class="card" id="balancesCard">
         <h2>Balances</h2>
         <div class="balance-grid">
@@ -232,34 +227,16 @@
       </div>
 
       <div class="card">
-        <h2 id="summaryTitle">This month</h2>
+        <h2>This month</h2>
         <div class="balance-grid">
-          <div class="item income">
-            <div class="label">Income</div>
-            <div class="value" id="mIncome">-</div>
-            <div class="recap-delta" id="mIncomeDelta"></div>
-          </div>
-          <div class="item expense">
-            <div class="label">Expenses</div>
-            <div class="value" id="mExpense">-</div>
-            <div class="recap-delta" id="mExpenseDelta"></div>
-          </div>
+          <div class="item income"><div class="label">Income</div><div class="value" id="mIncome">-</div></div>
+          <div class="item expense"><div class="label">Expenses</div><div class="value" id="mExpense">-</div></div>
           <div class="item net"><div class="label">Net</div><div class="value" id="mNet">-</div></div>
         </div>
       </div>
 
       <div class="card">
-        <h2>Savings added</h2>
-        <div class="value" id="mSavingsAdded" style="font-size:20px;font-weight:700;">-</div>
-      </div>
-
-      <div class="card">
-        <h2>Unexpected spending</h2>
-        <div id="mUnexpected" style="font-size:13px;color:var(--text);"></div>
-      </div>
-
-      <div class="card">
-        <h2 id="budgetCardTitle">Budget vs actual (this month)</h2>
+        <h2>Budget vs actual (this month)</h2>
         <div class="budget-summary-line" id="budgetSummaryLine"></div>
         <div id="budgetList"></div>
       </div>
@@ -285,7 +262,7 @@
       </div>
 
       <div class="card">
-        <h2 id="categoryChartTitle">Expenses by category (this month)</h2>
+        <h2>Expenses by category (this month)</h2>
         <div class="chart-box"><canvas id="chartCategory"></canvas></div>
       </div>
 
@@ -333,16 +310,71 @@
 
     <!-- HISTORY -->
     <section class="view" id="view-history">
-      <div class="card">
-        <div class="filters">
-          <select id="filterMonth"></select>
-          <select id="filterType">
-            <option value="all">All</option>
-            <option value="expense">Expenses</option>
-            <option value="income">Income</option>
-          </select>
+      <div class="type-toggle">
+        <button id="histTabPurchases" class="active">Purchases</button>
+        <button id="histTabRecap">Recap</button>
+      </div>
+
+      <div id="historyPurchases">
+        <div class="card">
+          <div class="filters">
+            <select id="filterMonth"></select>
+            <select id="filterType">
+              <option value="all">All</option>
+              <option value="expense">Expenses</option>
+              <option value="income">Income</option>
+            </select>
+          </div>
+          <div id="txList"></div>
         </div>
-        <div id="txList"></div>
+      </div>
+
+      <div id="historyRecap" style="display:none;">
+        <div class="card">
+          <label style="margin-top:0;">Month</label>
+          <select id="recapMonth"></select>
+        </div>
+
+        <div class="card">
+          <h2>Insights</h2>
+          <div id="rInsights"></div>
+        </div>
+
+        <div class="card">
+          <h2>Summary</h2>
+          <div class="balance-grid">
+            <div class="item income">
+              <div class="label">Income</div>
+              <div class="value" id="rIncome">-</div>
+              <div class="recap-delta" id="rIncomeDelta"></div>
+            </div>
+            <div class="item expense">
+              <div class="label">Expenses</div>
+              <div class="value" id="rExpense">-</div>
+              <div class="recap-delta" id="rExpenseDelta"></div>
+            </div>
+            <div class="item net">
+              <div class="label">Net</div>
+              <div class="value" id="rNet">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Savings added</h2>
+          <div class="value" id="rSavings" style="font-size:20px;font-weight:700;">-</div>
+        </div>
+
+        <div class="card">
+          <h2>Unexpected spending</h2>
+          <div id="rUnexpected" style="font-size:13px;color:var(--text);"></div>
+        </div>
+
+        <div class="card">
+          <h2>Category breakdown &amp; budget</h2>
+          <div class="budget-summary-line" id="rBudgetSummary"></div>
+          <div id="rCatList"></div>
+        </div>
       </div>
     </section>
 
@@ -569,7 +601,7 @@
     document.getElementById('headerTitle').textContent = titles[name][0];
     document.getElementById('headerSub').textContent = titles[name][1];
     if(name==='dashboard') renderDashboard();
-    if(name==='history') renderHistory();
+    if(name==='history') setHistoryTab(historyTab);
     if(name==='savings') renderSavings();
     if(name==='settings') renderSettings();
   }
@@ -920,60 +952,27 @@
       : 'Set your current balance in Settings to start tracking';
   }
 
-  function populateDashboardMonths(){
-    var sel = document.getElementById('dashboardMonth');
-    var prevVal = sel.value;
-    var months = allMonthsList();
-    var curMk = new Date().toISOString().slice(0,7);
-    sel.innerHTML = months.map(function(mk){
-      var d = new Date(mk+'-01');
-      var label = d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
-      return '<option value="'+mk+'">'+(mk===curMk ? 'This month — '+label : label)+'</option>';
-    }).join('');
-    sel.value = months.indexOf(prevVal)!==-1 ? prevVal : curMk;
-  }
-  document.getElementById('dashboardMonth').addEventListener('change', renderDashboard);
 
   function renderDashboard(){
     updateRateLine();
-    populateDashboardMonths();
+    renderBalances();
     var now = new Date();
-    var curMonthKey = now.toISOString().slice(0,7);
-    var mk = document.getElementById('dashboardMonth').value || curMonthKey;
-    var isCurrentMonth = mk === curMonthKey;
-    var cur = computeMonthTotals(mk);
-    var prev = computeMonthTotals(shiftMonth(mk,-1));
+    var curMonth = now.toISOString().slice(0,7);
+    var cur = computeMonthTotals(curMonth);
     var mIncome = cur.income, mExpense = cur.expense, catTotals = cur.catTotals;
-
-    var monthLabel = new Date(mk+'-01').toLocaleDateString('en-US',{month:'long',year:'numeric'});
-    document.getElementById('summaryTitle').textContent = isCurrentMonth ? 'This month' : monthLabel;
-    document.getElementById('budgetCardTitle').textContent = 'Budget vs actual' + (isCurrentMonth ? ' (this month)' : ' (' + monthLabel + ')');
-    document.getElementById('categoryChartTitle').textContent = 'Expenses by category' + (isCurrentMonth ? ' (this month)' : ' (' + monthLabel + ')');
-
     document.getElementById('mIncome').textContent = fmt(mIncome);
     document.getElementById('mExpense').textContent = fmt(mExpense);
     document.getElementById('mNet').textContent = fmtSigned(mIncome-mExpense);
-    document.getElementById('mIncomeDelta').innerHTML = deltaHtml(mIncome, prev.income, true);
-    document.getElementById('mExpenseDelta').innerHTML = deltaHtml(mExpense, prev.expense, false);
-
-    document.getElementById('mSavingsAdded').textContent = fmtSigned(cur.savings);
-    var unexpectedAmt = catTotals['unexpected'] || 0;
-    document.getElementById('mUnexpected').innerHTML = unexpectedAmt>0
-      ? ('<span style="color:var(--warn);font-weight:700;">'+fmt(unexpectedAmt)+'</span> spent on unplanned costs ' + (isCurrentMonth ? 'this month.' : 'in ' + monthLabel + '.'))
-      : 'No unexpected costs ' + (isCurrentMonth ? 'this month. 🎉' : 'in ' + monthLabel + '.');
-
-    document.getElementById('balancesCard').style.display = isCurrentMonth ? 'block' : 'none';
-    if(isCurrentMonth) renderBalances();
 
     var suggestionCard = document.getElementById('suggestionCard');
-    if(isCurrentMonth && pendingSuggestion){
+    if(pendingSuggestion){
       suggestionCard.style.display = 'block';
       document.getElementById('suggestionText').textContent = pendingSuggestion.text;
       document.getElementById('suggestionApply').style.display = pendingSuggestion.amount>0 ? 'block' : 'none';
     } else {
       suggestionCard.style.display = 'none';
     }
-    renderInsightsInto('insightsList', mk, isCurrentMonth);
+    renderInsightsInto('insightsList', curMonth, true);
 
     var totalBudget = 0;
     CATEGORIES.forEach(function(c){ totalBudget += state.budgets[c.key] || 0; });
@@ -984,42 +983,39 @@
       : 'No budgets set yet — add them in Settings.';
     document.getElementById('budgetList').innerHTML = buildBudgetRows(catTotals);
 
-    // Goal - only meaningful for the current month (pace is relative to today)
-    document.getElementById('goalCard').style.display = isCurrentMonth ? 'block' : 'none';
-    if(isCurrentMonth){
-      var savingsTotal = state.savings.reduce(function(a,s){return a+s.amount;},0);
-      document.getElementById('goalAmt').textContent = fmt(Math.max(savingsTotal,0));
-      document.getElementById('goalTarget').textContent = 'of ' + fmt(state.goal.target);
-      var pct = Math.min(100, Math.max(0, (savingsTotal/state.goal.target)*100));
-      document.getElementById('goalBar').style.width = pct + '%';
-      var milestonePct = Math.min(100, (state.goal.milestoneAmt/state.goal.target)*100);
-      document.getElementById('goalMilestoneMark').style.left = milestonePct + '%';
+    // Goal
+    var savingsTotal = state.savings.reduce(function(a,s){return a+s.amount;},0);
+    document.getElementById('goalAmt').textContent = fmt(Math.max(savingsTotal,0));
+    document.getElementById('goalTarget').textContent = 'of ' + fmt(state.goal.target);
+    var pct = Math.min(100, Math.max(0, (savingsTotal/state.goal.target)*100));
+    document.getElementById('goalBar').style.width = pct + '%';
+    var milestonePct = Math.min(100, (state.goal.milestoneAmt/state.goal.target)*100);
+    document.getElementById('goalMilestoneMark').style.left = milestonePct + '%';
 
-      var msDate = new Date(state.goal.milestoneDate);
-      var fnDate = new Date(state.goal.finalDate);
+    var msDate = new Date(state.goal.milestoneDate);
+    var fnDate = new Date(state.goal.finalDate);
 
-      var paceM = document.getElementById('paceMilestone');
-      var paceF = document.getElementById('paceFinal');
+    var paceM = document.getElementById('paceMilestone');
+    var paceF = document.getElementById('paceFinal');
 
-      if(now < msDate){
-        var need1 = Math.max(0, state.goal.milestoneAmt - savingsTotal);
-        var m1 = monthsBetween(now, msDate);
-        paceM.textContent = fmt(need1/m1) + '/mo';
-        paceM.className = 'v' + (need1<=0?' ok':'');
-      } else {
-        paceM.textContent = savingsTotal>=state.goal.milestoneAmt ? 'reached ✓' : 'overdue';
-        paceM.className='v' + (savingsTotal>=state.goal.milestoneAmt?' ok':'');
-      }
+    if(now < msDate){
+      var need1 = Math.max(0, state.goal.milestoneAmt - savingsTotal);
+      var m1 = monthsBetween(now, msDate);
+      paceM.textContent = fmt(need1/m1) + '/mo';
+      paceM.className = 'v' + (need1<=0?' ok':'');
+    } else {
+      paceM.textContent = savingsTotal>=state.goal.milestoneAmt ? 'reached ✓' : 'overdue';
+      paceM.className='v' + (savingsTotal>=state.goal.milestoneAmt?' ok':'');
+    }
 
-      if(now < fnDate){
-        var need2 = Math.max(0, state.goal.target - savingsTotal);
-        var m2 = monthsBetween(now, fnDate);
-        paceF.textContent = fmt(need2/m2) + '/mo';
-        paceF.className = 'v' + (need2<=0?' ok':'');
-      } else {
-        paceF.textContent = savingsTotal>=state.goal.target ? 'reached ✓' : 'overdue';
-        paceF.className='v' + (savingsTotal>=state.goal.target?' ok':'');
-      }
+    if(now < fnDate){
+      var need2 = Math.max(0, state.goal.target - savingsTotal);
+      var m2 = monthsBetween(now, fnDate);
+      paceF.textContent = fmt(need2/m2) + '/mo';
+      paceF.className = 'v' + (need2<=0?' ok':'');
+    } else {
+      paceF.textContent = savingsTotal>=state.goal.target ? 'reached ✓' : 'overdue';
+      paceF.className='v' + (savingsTotal>=state.goal.target?' ok':'');
     }
 
     // Category chart
@@ -1154,6 +1150,61 @@
     var arrow = up ? '▲' : '▼';
     return '<span style="color:'+color+';">'+arrow+' '+Math.abs(pct).toFixed(0)+'% vs last month</span>';
   }
+
+  function populateRecapMonths(){
+    var sel = document.getElementById('recapMonth');
+    var prevVal = sel.value;
+    var months = allMonthsList();
+    sel.innerHTML = months.map(function(mk){
+      var d = new Date(mk+'-01');
+      return '<option value="'+mk+'">'+d.toLocaleDateString('en-US',{month:'long',year:'numeric'})+'</option>';
+    }).join('');
+    sel.value = months.indexOf(prevVal)!==-1 ? prevVal : months[0];
+  }
+  document.getElementById('recapMonth').addEventListener('change', renderRecap);
+
+  function renderRecap(){
+    populateRecapMonths();
+    var mk = document.getElementById('recapMonth').value;
+    var cur = computeMonthTotals(mk);
+    var prev = computeMonthTotals(shiftMonth(mk,-1));
+    var isCurrentMonth = mk === new Date().toISOString().slice(0,7);
+    renderInsightsInto('rInsights', mk, isCurrentMonth);
+
+    document.getElementById('rIncome').textContent = fmt(cur.income);
+    document.getElementById('rExpense').textContent = fmt(cur.expense);
+    document.getElementById('rNet').textContent = fmtSigned(cur.income-cur.expense);
+    document.getElementById('rIncomeDelta').innerHTML = deltaHtml(cur.income, prev.income, true);
+    document.getElementById('rExpenseDelta').innerHTML = deltaHtml(cur.expense, prev.expense, false);
+
+    document.getElementById('rSavings').textContent = fmtSigned(cur.savings);
+
+    var unexpected = cur.catTotals['unexpected'] || 0;
+    document.getElementById('rUnexpected').innerHTML = unexpected>0
+      ? ('<span style="color:var(--warn);font-weight:700;">'+fmt(unexpected)+'</span> spent on unplanned costs this month.')
+      : 'No unexpected costs this month. 🎉';
+
+    var totalBudget = 0;
+    CATEGORIES.forEach(function(c){ totalBudget += state.budgets[c.key] || 0; });
+    var overCount = 0;
+    CATEGORIES.forEach(function(c){ var b=state.budgets[c.key]||0; var s=cur.catTotals[c.key]||0; if(b>0 && s>b) overCount++; });
+    document.getElementById('rBudgetSummary').innerHTML = totalBudget>0
+      ? ('Budgeted ' + fmt(totalBudget) + ' · Spent ' + fmt(cur.expense) + (overCount>0 ? ' · <span style="color:var(--danger);">'+overCount+' categor'+(overCount===1?'y':'ies')+' over budget</span>' : ''))
+      : 'No budgets set yet — add them in Settings.';
+    document.getElementById('rCatList').innerHTML = buildBudgetRows(cur.catTotals);
+  }
+
+  var historyTab = 'purchases';
+  function setHistoryTab(tab){
+    historyTab = tab;
+    document.getElementById('histTabPurchases').classList.toggle('active', tab==='purchases');
+    document.getElementById('histTabRecap').classList.toggle('active', tab==='recap');
+    document.getElementById('historyPurchases').style.display = tab==='purchases' ? 'block' : 'none';
+    document.getElementById('historyRecap').style.display = tab==='recap' ? 'block' : 'none';
+    if(tab==='purchases') renderHistory(); else renderRecap();
+  }
+  document.getElementById('histTabPurchases').addEventListener('click', function(){ setHistoryTab('purchases'); });
+  document.getElementById('histTabRecap').addEventListener('click', function(){ setHistoryTab('recap'); });
 
   // ---------- Savings (multiple accounts) ----------
   function getSavingsAccountsForUI(){
