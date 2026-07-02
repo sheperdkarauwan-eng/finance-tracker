@@ -84,6 +84,7 @@
   .type-toggle button{flex:1;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--card2);color:var(--muted);font-weight:700;font-size:14px;}
   .type-toggle button.active.expense{background:var(--danger);color:#2a0808;border-color:var(--danger);}
   .type-toggle button.active.income{background:var(--accent);color:#04220f;border-color:var(--accent);}
+  .type-toggle button.active:not(.expense):not(.income){background:var(--accent2);color:#04121f;border-color:var(--accent2);}
 
   label{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:600;}
   input[type=text],input[type=number],input[type=date],select,textarea{
@@ -196,6 +197,15 @@
       </div>
       <div class="rate-line" id="rateLine">Loading exchange rate…</div>
 
+      <div class="card">
+        <h2>Balances</h2>
+        <div class="balance-grid">
+          <div class="item"><div class="label">🏦 Bank</div><div class="value" id="balBank">-</div></div>
+          <div class="item"><div class="label">💵 Cash</div><div class="value" id="balCash">-</div></div>
+        </div>
+        <div class="rate-line" id="balAsOf" style="margin:8px 0 0;"></div>
+      </div>
+
       <div class="card" id="suggestionCard" style="display:none;">
         <h2>💡 Suggestion</h2>
         <div id="suggestionText" style="font-size:13px;line-height:1.5;"></div>
@@ -262,6 +272,12 @@
         <div class="type-toggle">
           <button id="typeExpense" class="active expense">− Expense</button>
           <button id="typeIncome" class="income">+ Income</button>
+        </div>
+
+        <label style="margin-top:0;">Account</label>
+        <div class="type-toggle" id="accountToggle">
+          <button id="acctBank" class="active">🏦 Bank</button>
+          <button id="acctCash">💵 Cash</button>
         </div>
 
         <div id="categoryPicker">
@@ -369,6 +385,27 @@
     <!-- SETTINGS -->
     <section class="view" id="view-settings">
       <div class="card">
+        <h2>Balances</h2>
+        <div class="settings-row"><span id="currentBalLine">-</span></div>
+        <label style="margin-top:12px;">Bank balance (EUR)</label>
+        <input type="number" id="setBankBal" inputmode="decimal" step="0.01">
+        <label>Cash balance (EUR)</label>
+        <input type="number" id="setCashBal" inputmode="decimal" step="0.01">
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Sets this as your balance right now — transactions you log from today onward will adjust it automatically. Use this anytime to recalibrate if untracked cash spending makes it drift.</div>
+        <button class="btn-primary" id="saveBalances">Set as current balance</button>
+
+        <label style="margin-top:20px;">Move money between Bank and Cash</label>
+        <select id="transferDirection">
+          <option value="toCash">Withdraw: Bank → Cash</option>
+          <option value="toBank">Deposit: Cash → Bank</option>
+        </select>
+        <label>Amount (EUR)</label>
+        <input type="number" id="transferAmount" inputmode="decimal" step="0.01" placeholder="0.00">
+        <label>Note (optional)</label>
+        <input type="text" id="transferNote" placeholder="e.g. ATM withdrawal">
+        <button class="btn-secondary" id="saveTransfer">Record transfer</button>
+      </div>
+      <div class="card">
         <h2>Goal settings</h2>
         <label>Target amount (EUR)</label>
         <input type="number" id="setTarget">
@@ -450,6 +487,8 @@
   var LS_GOAL = 'pft_goal_v1';
   var LS_CURR = 'pft_currency_v1';
   var LS_BUDGETS = 'pft_budgets_v1';
+  var LS_ACCOUNTS = 'pft_accounts_v1';
+  var LS_TRANSFERS = 'pft_transfers_v1';
 
   var DEFAULT_BUDGETS = {};
   CATEGORIES.forEach(function(c){ DEFAULT_BUDGETS[c.key] = 0; });
@@ -470,10 +509,31 @@
     rate: load(LS_RATE, {rate: 17300, updatedAt: null}),
     goal: load(LS_GOAL, {target:20000, milestoneAmt:10000, milestoneDate:'2027-05-01', finalDate:'2027-09-01'}),
     budgets: load(LS_BUDGETS, DEFAULT_BUDGETS),
+    accounts: load(LS_ACCOUNTS, {bank: 0, cash: 0, asOfDate: null}),
+    transfers: load(LS_TRANSFERS, []),
     currency: load(LS_CURR, 'EUR'),
     txType: 'expense',
+    txAccount: 'bank',
     selectedCategory: 'rent'
   };
+
+  function computeBalances(){
+    var bank = state.accounts.bank || 0;
+    var cash = state.accounts.cash || 0;
+    var asOf = state.accounts.asOfDate;
+    state.transactions.forEach(function(t){
+      if(asOf && t.date < asOf) return;
+      var acct = t.account || 'bank';
+      var sign = t.type === 'income' ? 1 : -1;
+      if(acct === 'cash') cash += sign * t.amount; else bank += sign * t.amount;
+    });
+    state.transfers.forEach(function(tr){
+      if(asOf && tr.date < asOf) return;
+      if(tr.direction === 'toCash'){ bank -= tr.amount; cash += tr.amount; }
+      else { cash -= tr.amount; bank += tr.amount; }
+    });
+    return { bank: bank, cash: cash };
+  }
 
   function fmt(amountEur){
     if(state.currency === 'EUR'){
@@ -652,12 +712,21 @@
   setTxType('expense');
   document.getElementById('dateInput').value = todayStr();
 
+  function setTxAccount(acct){
+    state.txAccount = acct;
+    document.getElementById('acctBank').classList.toggle('active', acct==='bank');
+    document.getElementById('acctCash').classList.toggle('active', acct==='cash');
+  }
+  document.getElementById('acctBank').addEventListener('click', function(){ setTxAccount('bank'); });
+  document.getElementById('acctCash').addEventListener('click', function(){ setTxAccount('cash'); });
+  setTxAccount('bank');
+
   document.getElementById('saveTx').addEventListener('click', function(){
     var amount = parseFloat(document.getElementById('amountInput').value);
     if(isNaN(amount) || amount<=0){ toast('Enter a valid amount'); return; }
     var date = document.getElementById('dateInput').value || todayStr();
     var note = document.getElementById('noteInput').value.trim();
-    var tx = { id: uid(), type: state.txType, date: date, note: note, amount: amount };
+    var tx = { id: uid(), type: state.txType, date: date, note: note, amount: amount, account: state.txAccount };
     if(state.txType==='expense'){
       tx.category = state.selectedCategory;
     } else {
@@ -670,6 +739,7 @@
     document.getElementById('sourceInput').value='';
     userOverrodeCategory = false;
     document.getElementById('categoryHint').style.display = 'none';
+    setTxAccount('bank');
     if(state.txType==='income'){
       pendingSuggestion = buildIncomeSuggestion(amount);
     }
@@ -841,8 +911,19 @@
     renderDashboard();
   });
 
+  function renderBalances(){
+    var bal = computeBalances();
+    document.getElementById('balBank').textContent = fmt(bal.bank);
+    document.getElementById('balCash').textContent = fmt(bal.cash);
+    var asOf = state.accounts.asOfDate;
+    document.getElementById('balAsOf').textContent = asOf
+      ? ('Set from ' + asOf + ' · update anytime in Settings')
+      : 'Set your current balance in Settings to start tracking';
+  }
+
   function renderDashboard(){
     updateRateLine();
+    renderBalances();
     var now = new Date();
     var curMonth = now.toISOString().slice(0,7);
     var cur = computeMonthTotals(curMonth);
@@ -1129,7 +1210,36 @@
     document.getElementById('setFinalDate').value = state.goal.finalDate;
     renderBudgetInputs();
     updateRateLine();
+
+    var bal = computeBalances();
+    document.getElementById('currentBalLine').textContent = 'Currently tracking: Bank ' + fmt(bal.bank) + ' · Cash ' + fmt(bal.cash);
+    document.getElementById('setBankBal').value = bal.bank.toFixed(2);
+    document.getElementById('setCashBal').value = bal.cash.toFixed(2);
   }
+  document.getElementById('saveBalances').addEventListener('click', function(){
+    var bank = parseFloat(document.getElementById('setBankBal').value);
+    var cash = parseFloat(document.getElementById('setCashBal').value);
+    state.accounts = {
+      bank: isNaN(bank) ? 0 : bank,
+      cash: isNaN(cash) ? 0 : cash,
+      asOfDate: todayStr()
+    };
+    save(LS_ACCOUNTS, state.accounts);
+    toast('Balances updated');
+    renderSettings();
+  });
+  document.getElementById('saveTransfer').addEventListener('click', function(){
+    var amount = parseFloat(document.getElementById('transferAmount').value);
+    if(isNaN(amount) || amount<=0){ toast('Enter a valid amount'); return; }
+    var direction = document.getElementById('transferDirection').value;
+    var note = document.getElementById('transferNote').value.trim();
+    state.transfers.push({ id: uid(), date: todayStr(), amount: amount, direction: direction, note: note });
+    save(LS_TRANSFERS, state.transfers);
+    document.getElementById('transferAmount').value = '';
+    document.getElementById('transferNote').value = '';
+    toast('Transfer recorded');
+    renderSettings();
+  });
   document.getElementById('saveGoal').addEventListener('click', function(){
     state.goal = {
       target: parseFloat(document.getElementById('setTarget').value) || 20000,
@@ -1158,7 +1268,7 @@
   });
 
   document.getElementById('exportBtn').addEventListener('click', function(){
-    var data = { transactions: state.transactions, savings: state.savings, goal: state.goal, budgets: state.budgets, rate: state.rate };
+    var data = { transactions: state.transactions, savings: state.savings, goal: state.goal, budgets: state.budgets, accounts: state.accounts, transfers: state.transfers, rate: state.rate };
     document.getElementById('exportBox').value = JSON.stringify(data, null, 2);
     toast('Exported below — copy it somewhere safe');
   });
@@ -1169,6 +1279,8 @@
       if(data.savings) { state.savings = data.savings; save(LS_SAV, state.savings); }
       if(data.goal) { state.goal = data.goal; save(LS_GOAL, state.goal); }
       if(data.budgets) { state.budgets = data.budgets; save(LS_BUDGETS, state.budgets); }
+      if(data.accounts) { state.accounts = data.accounts; save(LS_ACCOUNTS, state.accounts); }
+      if(data.transfers) { state.transfers = data.transfers; save(LS_TRANSFERS, state.transfers); }
       if(data.rate) { state.rate = data.rate; save(LS_RATE, state.rate); }
       toast('Data imported');
       renderSettings();
@@ -1181,6 +1293,8 @@
       localStorage.removeItem(LS_GOAL);
       localStorage.removeItem(LS_RATE);
       localStorage.removeItem(LS_BUDGETS);
+      localStorage.removeItem(LS_ACCOUNTS);
+      localStorage.removeItem(LS_TRANSFERS);
       location.reload();
     }
   });
