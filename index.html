@@ -40,6 +40,9 @@
   }
   header.top h1{font-size:17px;margin:0 0 2px;font-weight:700;}
   header.top .sub{font-size:12px;color:var(--muted);}
+  .header-row{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+  .settings-icon-btn{background:none;border:none;color:var(--text);font-size:20px;padding:6px;flex-shrink:0;line-height:1;}
+  .settings-icon-btn:active{opacity:.7;}
   main{flex:1;padding:14px 14px calc(84px + var(--safe-bottom));}
   .view{display:none;}
   .view.active{display:block;animation:fade .18s ease;}
@@ -189,8 +192,13 @@
 <div id="app">
 
   <header class="top">
-    <h1 id="headerTitle">Add transaction</h1>
-    <div class="sub" id="headerSub">Log income or an expense</div>
+    <div class="header-row">
+      <div>
+        <h1 id="headerTitle">Add transaction</h1>
+        <div class="sub" id="headerSub">Log income or an expense</div>
+      </div>
+      <button id="settingsBtn" class="settings-icon-btn" aria-label="Settings">⚙️</button>
+    </div>
   </header>
 
   <main>
@@ -382,13 +390,24 @@
     <section class="view" id="view-savings">
       <div class="card">
         <h2>Add to / withdraw from savings</h2>
-        <label style="margin-top:0;">Account</label>
+        <div class="type-toggle">
+          <button id="savTypeDeposit" class="active income">Deposit</button>
+          <button id="savTypeWithdraw" class="expense">Withdraw</button>
+        </div>
+        <label style="margin-top:0;">Savings account</label>
         <select id="savAccountSelect"></select>
-        <label>Amount (EUR) — use negative to withdraw</label>
-        <input type="number" id="savAmount" inputmode="decimal" placeholder="e.g. 200 or -50" step="0.01">
+
+        <label>Pay from / to</label>
+        <div class="type-toggle" id="savPaymentToggle">
+          <button id="savAcctBank" class="active">🏦 Bank</button>
+          <button id="savAcctCash">💵 Cash</button>
+        </div>
+
+        <label>Amount (EUR)</label>
+        <input type="number" id="savAmount" inputmode="decimal" step="0.01" placeholder="0.00">
         <label>Note (optional)</label>
         <input type="text" id="savNote" placeholder="e.g. side job payout">
-        <button class="btn-primary" id="saveSav">Add entry</button>
+        <button class="btn-primary" id="saveSav">Save</button>
       </div>
 
       <div class="card">
@@ -520,7 +539,6 @@
       <button data-view="history"><span class="ic">📜</span>History</button>
       <button data-view="savings"><span class="ic">🎯</span>Savings</button>
       <button data-view="loans"><span class="ic">🤝</span>Loans</button>
-      <button data-view="settings"><span class="ic">⚙️</span>Settings</button>
     </div>
   </nav>
 
@@ -616,6 +634,19 @@
       var sign = le.type === 'repaid' ? 1 : -1; // lending money out = -, getting repaid = +
       if(acct === 'cash') cash += sign * le.amount; else bank += sign * le.amount;
     });
+    // Savings entries: amount is positive for a deposit (money leaves Bank/Cash
+    // into savings) and negative for a withdrawal (money returns) - so the
+    // balance effect is always the opposite sign of the stored amount.
+    state.savings.forEach(function(s){
+      if((s.createdAt || 0) < asOfTs) return;
+      var acct = s.account || 'bank';
+      if(acct === 'cash') cash -= s.amount; else bank -= s.amount;
+    });
+    state.savingsAccountEntries.forEach(function(e){
+      if((e.createdAt || 0) < asOfTs) return;
+      var acct = e.account || 'bank';
+      if(acct === 'cash') cash -= e.amount; else bank -= e.amount;
+    });
     return { bank: bank, cash: cash };
   }
 
@@ -661,6 +692,7 @@
   document.querySelectorAll('nav.bottom button').forEach(function(b){
     b.addEventListener('click', function(){ showView(b.getAttribute('data-view')); });
   });
+  document.getElementById('settingsBtn').addEventListener('click', function(){ showView('settings'); });
 
   // ---------- Currency toggle ----------
   document.getElementById('btnEUR').addEventListener('click', function(){
@@ -1285,16 +1317,37 @@
     if(accounts.some(function(a){ return a.id===prevVal; })) sel.value = prevVal;
   }
 
+  var savType = 'deposit';
+  function setSavType(type){
+    savType = type;
+    document.getElementById('savTypeDeposit').classList.toggle('active', type==='deposit');
+    document.getElementById('savTypeWithdraw').classList.toggle('active', type==='withdraw');
+  }
+  document.getElementById('savTypeDeposit').addEventListener('click', function(){ setSavType('deposit'); });
+  document.getElementById('savTypeWithdraw').addEventListener('click', function(){ setSavType('withdraw'); });
+  setSavType('deposit');
+
+  var savPaymentAccount = 'bank';
+  function setSavPaymentAccount(acct){
+    savPaymentAccount = acct;
+    document.getElementById('savAcctBank').classList.toggle('active', acct==='bank');
+    document.getElementById('savAcctCash').classList.toggle('active', acct==='cash');
+  }
+  document.getElementById('savAcctBank').addEventListener('click', function(){ setSavPaymentAccount('bank'); });
+  document.getElementById('savAcctCash').addEventListener('click', function(){ setSavPaymentAccount('cash'); });
+  setSavPaymentAccount('bank');
+
   document.getElementById('saveSav').addEventListener('click', function(){
-    var amount = parseFloat(document.getElementById('savAmount').value);
-    if(isNaN(amount) || amount===0){ toast('Enter a valid amount'); return; }
+    var rawAmount = parseFloat(document.getElementById('savAmount').value);
+    if(isNaN(rawAmount) || rawAmount<=0){ toast('Enter a valid amount'); return; }
+    var amount = savType==='withdraw' ? -rawAmount : rawAmount;
     var note = document.getElementById('savNote').value.trim();
     var accountId = document.getElementById('savAccountSelect').value || 'masters';
     if(accountId === 'masters'){
-      state.savings.push({ id: uid(), date: todayStr(), amount: amount, note: note });
+      state.savings.push({ id: uid(), date: todayStr(), amount: amount, note: note, account: savPaymentAccount, createdAt: Date.now() });
       save(LS_SAV, state.savings);
     } else {
-      state.savingsAccountEntries.push({ id: uid(), accountId: accountId, date: todayStr(), amount: amount, note: note });
+      state.savingsAccountEntries.push({ id: uid(), accountId: accountId, date: todayStr(), amount: amount, note: note, account: savPaymentAccount, createdAt: Date.now() });
       save(LS_SAVACC_ENTRIES, state.savingsAccountEntries);
     }
     document.getElementById('savAmount').value='';
