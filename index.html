@@ -140,6 +140,12 @@
   .sav-item .amt{font-weight:700;}
   .sav-item .amt.pos{color:var(--accent);}
   .sav-item .amt.neg{color:var(--danger);}
+  .acc-card{background:var(--card2);border-radius:12px;padding:12px 14px;margin-bottom:10px;}
+  .acc-card:last-child{margin-bottom:0;}
+  .acc-card .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .acc-card .name{font-weight:700;font-size:13px;}
+  .acc-card .amt{font-size:13px;color:var(--muted);}
+  .acc-card .del{background:none;border:none;color:var(--muted);font-size:14px;padding:2px 6px;}
 
   /* Bottom nav */
   nav.bottom{
@@ -344,12 +350,29 @@
     <section class="view" id="view-savings">
       <div class="card">
         <h2>Add to / withdraw from savings</h2>
+        <label style="margin-top:0;">Account</label>
+        <select id="savAccountSelect"></select>
         <label>Amount (EUR) — use negative to withdraw</label>
         <input type="number" id="savAmount" inputmode="decimal" placeholder="e.g. 200 or -50" step="0.01">
         <label>Note (optional)</label>
         <input type="text" id="savNote" placeholder="e.g. side job payout">
         <button class="btn-primary" id="saveSav">Add entry</button>
       </div>
+
+      <div class="card">
+        <h2>Your savings accounts</h2>
+        <div id="savAccountsList"></div>
+      </div>
+
+      <div class="card">
+        <h2>New savings account</h2>
+        <label style="margin-top:0;">Name</label>
+        <input type="text" id="newAccName" placeholder="e.g. Emergency fund, New laptop">
+        <label>Target amount (EUR) — optional, 0 for none</label>
+        <input type="number" id="newAccTarget" inputmode="decimal" step="0.01" placeholder="0.00">
+        <button class="btn-secondary" id="createAccount">Create account</button>
+      </div>
+
       <div class="card">
         <h2>Savings history</h2>
         <div id="savList"></div>
@@ -462,6 +485,8 @@
   var LS_BUDGETS = 'pft_budgets_v1';
   var LS_ACCOUNTS = 'pft_accounts_v1';
   var LS_TRANSFERS = 'pft_transfers_v1';
+  var LS_SAVACC = 'pft_savings_accounts_v1';
+  var LS_SAVACC_ENTRIES = 'pft_savings_account_entries_v1';
 
   var DEFAULT_BUDGETS = {};
   CATEGORIES.forEach(function(c){ DEFAULT_BUDGETS[c.key] = 0; });
@@ -484,6 +509,8 @@
     budgets: load(LS_BUDGETS, DEFAULT_BUDGETS),
     accounts: load(LS_ACCOUNTS, {bank: 0, cash: 0, asOfDate: null}),
     transfers: load(LS_TRANSFERS, []),
+    savingsAccounts: load(LS_SAVACC, []),
+    savingsAccountEntries: load(LS_SAVACC_ENTRIES, []),
     currency: load(LS_CURR, 'EUR'),
     txType: 'expense',
     txAccount: 'bank',
@@ -1128,26 +1155,105 @@
     return '<span style="color:'+color+';">'+arrow+' '+Math.abs(pct).toFixed(0)+'% vs last month</span>';
   }
 
-  // ---------- Savings ----------
+  // ---------- Savings (multiple accounts) ----------
+  function getSavingsAccountsForUI(){
+    var list = [{ id: 'masters', name: '🎓 Masters Tuition', target: state.goal.target }];
+    state.savingsAccounts.forEach(function(a){
+      list.push({ id: a.id, name: a.name, target: a.target || 0 });
+    });
+    return list;
+  }
+
+  function accountTotal(accountId){
+    if(accountId === 'masters'){
+      return state.savings.reduce(function(a,s){ return a + s.amount; }, 0);
+    }
+    return state.savingsAccountEntries
+      .filter(function(e){ return e.accountId === accountId; })
+      .reduce(function(a,e){ return a + e.amount; }, 0);
+  }
+
+  function populateSavAccountSelect(){
+    var sel = document.getElementById('savAccountSelect');
+    var prevVal = sel.value;
+    var accounts = getSavingsAccountsForUI();
+    sel.innerHTML = accounts.map(function(a){ return '<option value="'+a.id+'">'+escapeHtml(a.name)+'</option>'; }).join('');
+    if(accounts.some(function(a){ return a.id===prevVal; })) sel.value = prevVal;
+  }
+
   document.getElementById('saveSav').addEventListener('click', function(){
     var amount = parseFloat(document.getElementById('savAmount').value);
     if(isNaN(amount) || amount===0){ toast('Enter a valid amount'); return; }
     var note = document.getElementById('savNote').value.trim();
-    state.savings.push({ id: uid(), date: todayStr(), amount: amount, note: note });
-    save(LS_SAV, state.savings);
+    var accountId = document.getElementById('savAccountSelect').value || 'masters';
+    if(accountId === 'masters'){
+      state.savings.push({ id: uid(), date: todayStr(), amount: amount, note: note });
+      save(LS_SAV, state.savings);
+    } else {
+      state.savingsAccountEntries.push({ id: uid(), accountId: accountId, date: todayStr(), amount: amount, note: note });
+      save(LS_SAVACC_ENTRIES, state.savingsAccountEntries);
+    }
     document.getElementById('savAmount').value='';
     document.getElementById('savNote').value='';
     toast('Savings updated');
     renderSavings();
   });
 
+  document.getElementById('createAccount').addEventListener('click', function(){
+    var name = document.getElementById('newAccName').value.trim();
+    if(!name){ toast('Enter an account name'); return; }
+    var target = parseFloat(document.getElementById('newAccTarget').value);
+    state.savingsAccounts.push({ id: uid(), name: name, target: isNaN(target) ? 0 : Math.max(0,target) });
+    save(LS_SAVACC, state.savingsAccounts);
+    document.getElementById('newAccName').value = '';
+    document.getElementById('newAccTarget').value = '';
+    toast('Account created');
+    renderSavings();
+  });
+
+  function renderSavAccountsList(){
+    var box = document.getElementById('savAccountsList');
+    var accounts = getSavingsAccountsForUI();
+    box.innerHTML = accounts.map(function(a){
+      var total = accountTotal(a.id);
+      var pct = a.target>0 ? Math.min(100, Math.max(0,(total/a.target)*100)) : 0;
+      var bar = a.target>0 ? ('<div class="bar-wrap" style="height:8px;margin-top:6px;"><div class="bar-fill" style="width:'+pct+'%"></div></div>') : '';
+      var delBtn = a.id!=='masters' ? '<button class="del" data-id="'+a.id+'">✕</button>' : '';
+      return '<div class="acc-card">'+
+        '<div class="top"><span class="name">'+escapeHtml(a.name)+'</span>'+delBtn+'</div>'+
+        '<div class="amt">'+fmt(total)+(a.target>0 ? ' of '+fmt(a.target) : '')+'</div>'+
+        bar+
+      '</div>';
+    }).join('');
+    box.querySelectorAll('.del').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = btn.getAttribute('data-id');
+        if(!confirm('Delete this account and all its entries? This cannot be undone.')) return;
+        state.savingsAccounts = state.savingsAccounts.filter(function(a){ return a.id!==id; });
+        state.savingsAccountEntries = state.savingsAccountEntries.filter(function(e){ return e.accountId!==id; });
+        save(LS_SAVACC, state.savingsAccounts);
+        save(LS_SAVACC_ENTRIES, state.savingsAccountEntries);
+        toast('Account deleted');
+        renderSavings();
+      });
+    });
+  }
+
   function renderSavings(){
+    populateSavAccountSelect();
+    renderSavAccountsList();
+
     var box = document.getElementById('savList');
-    var list = state.savings.slice().sort(function(a,b){return b.date.localeCompare(a.date);});
+    var accountNames = {};
+    getSavingsAccountsForUI().forEach(function(a){ accountNames[a.id] = a.name; });
+    var mastersEntries = state.savings.map(function(s){ return { date:s.date, amount:s.amount, note:s.note, accountId:'masters' }; });
+    var otherEntries = state.savingsAccountEntries.map(function(e){ return { date:e.date, amount:e.amount, note:e.note, accountId:e.accountId }; });
+    var list = mastersEntries.concat(otherEntries).sort(function(a,b){return b.date.localeCompare(a.date);});
     if(list.length===0){ box.innerHTML = '<div class="empty">No savings entries yet</div>'; return; }
     box.innerHTML = list.map(function(s){
       var cls = s.amount>=0 ? 'pos' : 'neg';
-      return '<div class="sav-item"><span>'+s.date+(s.note? ' · '+escapeHtml(s.note):'')+'</span><span class="amt '+cls+'">'+fmtSigned(s.amount)+'</span></div>';
+      var accLabel = accountNames[s.accountId] || 'Unknown account';
+      return '<div class="sav-item"><span>'+s.date+' · '+escapeHtml(accLabel)+(s.note? ' · '+escapeHtml(s.note):'')+'</span><span class="amt '+cls+'">'+fmtSigned(s.amount)+'</span></div>';
     }).join('');
   }
 
@@ -1234,7 +1340,7 @@
   });
 
   document.getElementById('exportBtn').addEventListener('click', function(){
-    var data = { transactions: state.transactions, savings: state.savings, goal: state.goal, budgets: state.budgets, accounts: state.accounts, transfers: state.transfers, rate: state.rate };
+    var data = { transactions: state.transactions, savings: state.savings, goal: state.goal, budgets: state.budgets, accounts: state.accounts, transfers: state.transfers, savingsAccounts: state.savingsAccounts, savingsAccountEntries: state.savingsAccountEntries, rate: state.rate };
     document.getElementById('exportBox').value = JSON.stringify(data, null, 2);
     toast('Exported below — copy it somewhere safe');
   });
@@ -1247,6 +1353,8 @@
       if(data.budgets) { state.budgets = data.budgets; save(LS_BUDGETS, state.budgets); }
       if(data.accounts) { state.accounts = data.accounts; save(LS_ACCOUNTS, state.accounts); }
       if(data.transfers) { state.transfers = data.transfers; save(LS_TRANSFERS, state.transfers); }
+      if(data.savingsAccounts) { state.savingsAccounts = data.savingsAccounts; save(LS_SAVACC, state.savingsAccounts); }
+      if(data.savingsAccountEntries) { state.savingsAccountEntries = data.savingsAccountEntries; save(LS_SAVACC_ENTRIES, state.savingsAccountEntries); }
       if(data.rate) { state.rate = data.rate; save(LS_RATE, state.rate); }
       toast('Data imported');
       renderSettings();
@@ -1261,6 +1369,8 @@
       localStorage.removeItem(LS_BUDGETS);
       localStorage.removeItem(LS_ACCOUNTS);
       localStorage.removeItem(LS_TRANSFERS);
+      localStorage.removeItem(LS_SAVACC);
+      localStorage.removeItem(LS_SAVACC_ENTRIES);
       location.reload();
     }
   });
