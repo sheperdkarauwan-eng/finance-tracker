@@ -106,7 +106,8 @@
   /* History */
   .filters{display:flex;gap:8px;margin-bottom:12px;}
   .filters select{font-size:13px;padding:8px;}
-  .tx-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+  .tx-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+  .sav-item{cursor:pointer;}
   .tx-item:last-child{border-bottom:none;}
   .tx-emoji{font-size:20px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--card2);border-radius:10px;flex-shrink:0;}
   .tx-mid{flex:1;min-width:0;}
@@ -312,7 +313,9 @@
         <input type="text" id="noteInput" placeholder="e.g. portable AC, heat wave">
         <div id="categoryHint" style="display:none;font-size:11.5px;color:var(--accent2);margin-top:6px;"></div>
 
+        <div id="editBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;">✏️ Editing an existing entry</div>
         <button class="btn-primary" id="saveTx">Save</button>
+        <button class="btn-secondary" id="cancelEditTx" style="display:none;">Cancel edit</button>
       </div>
     </section>
 
@@ -407,7 +410,9 @@
         <input type="number" id="savAmount" inputmode="decimal" step="0.01" placeholder="0.00">
         <label>Note (optional)</label>
         <input type="text" id="savNote" placeholder="e.g. side job payout">
+        <div id="savEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;">✏️ Editing an existing entry</div>
         <button class="btn-primary" id="saveSav">Save</button>
+        <button class="btn-secondary" id="cancelEditSav" style="display:none;">Cancel edit</button>
       </div>
 
       <div class="card">
@@ -454,7 +459,9 @@
         <input type="date" id="loanDate">
         <label>Note (optional)</label>
         <input type="text" id="loanNote" placeholder="e.g. dinner split, rent help">
+        <div id="loanEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;">✏️ Editing an existing entry</div>
         <button class="btn-primary" id="saveLoan">Save</button>
+        <button class="btn-secondary" id="cancelEditLoan" style="display:none;">Cancel edit</button>
       </div>
 
       <div class="card">
@@ -837,11 +844,74 @@
   document.getElementById('acctCash').addEventListener('click', function(){ setTxAccount('cash'); });
   setTxAccount('bank');
 
+  var editingTxId = null;
+
+  function startEditTx(tx){
+    editingTxId = tx.id;
+    setTxType(tx.type);
+    setTxAccount(tx.account || 'bank');
+    if(tx.type==='expense'){
+      state.selectedCategory = tx.category;
+      renderCatGrid();
+      userOverrodeCategory = true;
+    } else {
+      document.getElementById('sourceInput').value = tx.source || '';
+    }
+    document.getElementById('amountInput').value = tx.amount;
+    document.getElementById('dateInput').value = tx.date;
+    document.getElementById('noteInput').value = tx.note || '';
+    document.getElementById('categoryHint').style.display = 'none';
+    document.getElementById('editBanner').style.display = 'block';
+    document.getElementById('cancelEditTx').style.display = 'block';
+    document.getElementById('saveTx').textContent = 'Update';
+    showView('add');
+  }
+
+  function exitEditTx(){
+    editingTxId = null;
+    document.getElementById('editBanner').style.display = 'none';
+    document.getElementById('cancelEditTx').style.display = 'none';
+    document.getElementById('saveTx').textContent = 'Save';
+    document.getElementById('amountInput').value = '';
+    document.getElementById('noteInput').value = '';
+    document.getElementById('sourceInput').value = '';
+    document.getElementById('dateInput').value = todayStr();
+    userOverrodeCategory = false;
+  }
+  document.getElementById('cancelEditTx').addEventListener('click', function(){
+    exitEditTx();
+    showView('history');
+  });
+
   document.getElementById('saveTx').addEventListener('click', function(){
     var amount = parseFloat(document.getElementById('amountInput').value);
     if(isNaN(amount) || amount<=0){ toast('Enter a valid amount'); return; }
     var date = document.getElementById('dateInput').value || todayStr();
     var note = document.getElementById('noteInput').value.trim();
+
+    if(editingTxId){
+      var existing = state.transactions.find(function(t){ return t.id===editingTxId; });
+      if(existing){
+        existing.type = state.txType;
+        existing.account = state.txAccount;
+        existing.amount = amount;
+        existing.date = date;
+        existing.note = note;
+        if(state.txType==='expense'){
+          existing.category = state.selectedCategory;
+          delete existing.source;
+        } else {
+          existing.source = document.getElementById('sourceInput').value.trim();
+          delete existing.category;
+        }
+        save(LS_TX, state.transactions);
+        toast('Transaction updated');
+      }
+      exitEditTx();
+      showView('history');
+      return;
+    }
+
     var tx = { id: uid(), type: state.txType, date: date, note: note, amount: amount, account: state.txAccount, createdAt: Date.now() };
     if(state.txType==='expense'){
       tx.category = state.selectedCategory;
@@ -1190,15 +1260,23 @@
       var emoji = t.type==='income' ? '💰' : (CAT_MAP[t.category] ? CAT_MAP[t.category].emoji : '❓');
       var label = t.type==='income' ? (t.source || 'Income') : (CAT_MAP[t.category] ? CAT_MAP[t.category].label : 'Other');
       var noteHtml = t.note ? ('<div class="tx-note">'+escapeHtml(t.note)+'</div>') : '';
-      return '<div class="tx-item">'+
+      return '<div class="tx-item" data-id="'+t.id+'">'+
         '<div class="tx-emoji">'+emoji+'</div>'+
         '<div class="tx-mid"><div class="tx-cat">'+escapeHtml(label)+'</div>'+noteHtml+'<div class="tx-date">'+t.date+'</div></div>'+
         '<div class="tx-amt '+t.type+'">'+(t.type==='income'?'+':'−')+fmt(t.amount)+'</div>'+
         '<button class="tx-del" data-id="'+t.id+'">✕</button>'+
       '</div>';
     }).join('');
+    box.querySelectorAll('.tx-item').forEach(function(row){
+      row.addEventListener('click', function(){
+        var id = row.getAttribute('data-id');
+        var tx = state.transactions.find(function(t){ return t.id===id; });
+        if(tx) startEditTx(tx);
+      });
+    });
     box.querySelectorAll('.tx-del').forEach(function(btn){
-      btn.addEventListener('click', function(){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
         var id = btn.getAttribute('data-id');
         state.transactions = state.transactions.filter(function(t){return t.id!==id;});
         save(LS_TX, state.transactions);
@@ -1337,12 +1415,57 @@
   document.getElementById('savAcctCash').addEventListener('click', function(){ setSavPaymentAccount('cash'); });
   setSavPaymentAccount('bank');
 
+  var editingSavId = null;
+  var editingSavSource = null; // 'masters' or an accountId
+
+  function startEditSav(entry){
+    editingSavId = entry.id;
+    editingSavSource = entry.accountId;
+    populateSavAccountSelect();
+    document.getElementById('savAccountSelect').value = entry.accountId;
+    setSavType(entry.amount < 0 ? 'withdraw' : 'deposit');
+    setSavPaymentAccount(entry.account || 'bank');
+    document.getElementById('savAmount').value = Math.abs(entry.amount);
+    document.getElementById('savNote').value = entry.note || '';
+    document.getElementById('savEditBanner').style.display = 'block';
+    document.getElementById('cancelEditSav').style.display = 'block';
+    document.getElementById('saveSav').textContent = 'Update';
+    showView('savings');
+  }
+
+  function exitEditSav(){
+    editingSavId = null;
+    editingSavSource = null;
+    document.getElementById('savEditBanner').style.display = 'none';
+    document.getElementById('cancelEditSav').style.display = 'none';
+    document.getElementById('saveSav').textContent = 'Save';
+    document.getElementById('savAmount').value = '';
+    document.getElementById('savNote').value = '';
+  }
+  document.getElementById('cancelEditSav').addEventListener('click', exitEditSav);
+
   document.getElementById('saveSav').addEventListener('click', function(){
     var rawAmount = parseFloat(document.getElementById('savAmount').value);
     if(isNaN(rawAmount) || rawAmount<=0){ toast('Enter a valid amount'); return; }
     var amount = savType==='withdraw' ? -rawAmount : rawAmount;
     var note = document.getElementById('savNote').value.trim();
     var accountId = document.getElementById('savAccountSelect').value || 'masters';
+
+    if(editingSavId){
+      var sourceArr = editingSavSource==='masters' ? state.savings : state.savingsAccountEntries;
+      var existing = sourceArr.find(function(e){ return e.id===editingSavId; });
+      if(existing){
+        existing.amount = amount;
+        existing.note = note;
+        existing.account = savPaymentAccount;
+        save(editingSavSource==='masters' ? LS_SAV : LS_SAVACC_ENTRIES, sourceArr);
+        toast('Savings entry updated');
+      }
+      exitEditSav();
+      renderSavings();
+      return;
+    }
+
     if(accountId === 'masters'){
       state.savings.push({ id: uid(), date: todayStr(), amount: amount, note: note, account: savPaymentAccount, createdAt: Date.now() });
       save(LS_SAV, state.savings);
@@ -1403,15 +1526,44 @@
     var box = document.getElementById('savList');
     var accountNames = {};
     getSavingsAccountsForUI().forEach(function(a){ accountNames[a.id] = a.name; });
-    var mastersEntries = state.savings.map(function(s){ return { date:s.date, amount:s.amount, note:s.note, accountId:'masters' }; });
-    var otherEntries = state.savingsAccountEntries.map(function(e){ return { date:e.date, amount:e.amount, note:e.note, accountId:e.accountId }; });
+    var mastersEntries = state.savings.map(function(s){ return { id:s.id, date:s.date, amount:s.amount, note:s.note, account:s.account, accountId:'masters' }; });
+    var otherEntries = state.savingsAccountEntries.map(function(e){ return { id:e.id, date:e.date, amount:e.amount, note:e.note, account:e.account, accountId:e.accountId }; });
     var list = mastersEntries.concat(otherEntries).sort(function(a,b){return b.date.localeCompare(a.date);});
     if(list.length===0){ box.innerHTML = '<div class="empty">No savings entries yet</div>'; return; }
     box.innerHTML = list.map(function(s){
       var cls = s.amount>=0 ? 'pos' : 'neg';
       var accLabel = accountNames[s.accountId] || 'Unknown account';
-      return '<div class="sav-item"><span>'+s.date+' · '+escapeHtml(accLabel)+(s.note? ' · '+escapeHtml(s.note):'')+'</span><span class="amt '+cls+'">'+fmtSigned(s.amount)+'</span></div>';
+      return '<div class="sav-item" data-id="'+s.id+'" data-source="'+s.accountId+'">'+
+        '<span>'+s.date+' · '+escapeHtml(accLabel)+(s.note? ' · '+escapeHtml(s.note):'')+'</span>'+
+        '<span class="amt '+cls+'">'+fmtSigned(s.amount)+'</span>'+
+        '<button class="tx-del" data-id="'+s.id+'" data-source="'+s.accountId+'">✕</button>'+
+      '</div>';
     }).join('');
+    box.querySelectorAll('.sav-item').forEach(function(row){
+      row.addEventListener('click', function(){
+        var id = row.getAttribute('data-id');
+        var source = row.getAttribute('data-source');
+        var arr = source==='masters' ? state.savings : state.savingsAccountEntries;
+        var entry = arr.find(function(e){ return e.id===id; });
+        if(entry){ entry.accountId = source; startEditSav(entry); }
+      });
+    });
+    box.querySelectorAll('#savList .tx-del').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var id = btn.getAttribute('data-id');
+        var source = btn.getAttribute('data-source');
+        if(source==='masters'){
+          state.savings = state.savings.filter(function(x){ return x.id!==id; });
+          save(LS_SAV, state.savings);
+        } else {
+          state.savingsAccountEntries = state.savingsAccountEntries.filter(function(x){ return x.id!==id; });
+          save(LS_SAVACC_ENTRIES, state.savingsAccountEntries);
+        }
+        toast('Deleted');
+        renderSavings();
+      });
+    });
   }
 
   // ---------- Loans (money people borrow from you) ----------
@@ -1457,6 +1609,35 @@
   }
   document.getElementById('loanPersonSelect').addEventListener('change', updateNewPersonVisibility);
 
+  var editingLoanId = null;
+
+  function startEditLoan(entry){
+    editingLoanId = entry.id;
+    populateLoanPersonSelect();
+    document.getElementById('loanPersonSelect').value = entry.personId;
+    updateNewPersonVisibility();
+    setLoanType(entry.type);
+    setLoanAccount(entry.account || 'bank');
+    document.getElementById('loanAmount').value = entry.amount;
+    document.getElementById('loanDate').value = entry.date;
+    document.getElementById('loanNote').value = entry.note || '';
+    document.getElementById('loanEditBanner').style.display = 'block';
+    document.getElementById('cancelEditLoan').style.display = 'block';
+    document.getElementById('saveLoan').textContent = 'Update';
+    showView('loans');
+  }
+
+  function exitEditLoan(){
+    editingLoanId = null;
+    document.getElementById('loanEditBanner').style.display = 'none';
+    document.getElementById('cancelEditLoan').style.display = 'none';
+    document.getElementById('saveLoan').textContent = 'Save';
+    document.getElementById('loanAmount').value = '';
+    document.getElementById('loanNote').value = '';
+    document.getElementById('loanDate').value = todayStr();
+  }
+  document.getElementById('cancelEditLoan').addEventListener('click', exitEditLoan);
+
   document.getElementById('saveLoan').addEventListener('click', function(){
     var amount = parseFloat(document.getElementById('loanAmount').value);
     if(isNaN(amount) || amount<=0){ toast('Enter a valid amount'); return; }
@@ -1470,6 +1651,23 @@
       personId = uid();
       state.loanPeople.push({ id: personId, name: name });
       save(LS_LOAN_PEOPLE, state.loanPeople);
+    }
+
+    if(editingLoanId){
+      var existing = state.loanEntries.find(function(e){ return e.id===editingLoanId; });
+      if(existing){
+        existing.personId = personId;
+        existing.type = loanType;
+        existing.amount = amount;
+        existing.date = date;
+        existing.note = note;
+        existing.account = loanAccount;
+        save(LS_LOAN_ENTRIES, state.loanEntries);
+        toast('Entry updated');
+      }
+      exitEditLoan();
+      renderLoans();
+      return;
     }
 
     state.loanEntries.push({ id: uid(), personId: personId, type: loanType, amount: amount, date: date, note: note, account: loanAccount, createdAt: Date.now() });
@@ -1510,8 +1708,29 @@
       var cls = e.type==='lent' ? 'neg' : 'pos';
       var sign = e.type==='lent' ? '−' : '+';
       var acctLabel = e.account==='cash' ? '💵' : '🏦';
-      return '<div class="sav-item"><span>'+e.date+' · '+acctLabel+' '+escapeHtml(name)+(e.note? ' · '+escapeHtml(e.note):'')+'</span><span class="amt '+cls+'">'+sign+fmt(e.amount)+'</span></div>';
+      return '<div class="sav-item" data-id="'+e.id+'">'+
+        '<span>'+e.date+' · '+acctLabel+' '+escapeHtml(name)+(e.note? ' · '+escapeHtml(e.note):'')+'</span>'+
+        '<span class="amt '+cls+'">'+sign+fmt(e.amount)+'</span>'+
+        '<button class="tx-del" data-id="'+e.id+'">✕</button>'+
+      '</div>';
     }).join('');
+    histBox.querySelectorAll('.sav-item').forEach(function(row){
+      row.addEventListener('click', function(){
+        var id = row.getAttribute('data-id');
+        var entry = state.loanEntries.find(function(e){ return e.id===id; });
+        if(entry) startEditLoan(entry);
+      });
+    });
+    histBox.querySelectorAll('.tx-del').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var id = btn.getAttribute('data-id');
+        state.loanEntries = state.loanEntries.filter(function(e){ return e.id!==id; });
+        save(LS_LOAN_ENTRIES, state.loanEntries);
+        toast('Deleted');
+        renderLoans();
+      });
+    });
   }
 
   // ---------- Settings ----------
