@@ -447,6 +447,11 @@
         <select id="loanPersonSelect"></select>
         <input type="text" id="loanNewPersonName" placeholder="Name" style="display:none;margin-top:8px;">
 
+        <div id="whichLoanWrap" style="display:none;">
+          <label>Which loan is this repaying?</label>
+          <select id="whichLoanSelect"></select>
+        </div>
+
         <label>Account</label>
         <div class="type-toggle" id="loanAccountToggle">
           <button id="loanAcctBank" class="active">🏦 Bank</button>
@@ -1572,6 +1577,7 @@
     loanType = type;
     document.getElementById('loanTypeLent').classList.toggle('active', type==='lent');
     document.getElementById('loanTypeRepaid').classList.toggle('active', type==='repaid');
+    populateWhichLoanSelect();
   }
   document.getElementById('loanTypeLent').addEventListener('click', function(){ setLoanType('lent'); });
   document.getElementById('loanTypeRepaid').addEventListener('click', function(){ setLoanType('repaid'); });
@@ -1594,9 +1600,84 @@
       .reduce(function(a,e){ return a + (e.type==='lent' ? e.amount : -e.amount); }, 0);
   }
 
+  // Per-loan breakdown: how much of each individual loan is still owed, and
+  // whether any repayment (linked or general) pushed it past what was lent -
+  // that excess is treated as a tip rather than negative debt.
+  function personLoanBreakdown(personId){
+    var loans = state.loanEntries.filter(function(e){ return e.personId===personId && e.type==='lent'; });
+    var repayments = state.loanEntries.filter(function(e){ return e.personId===personId && e.type==='repaid'; });
+    var loanIds = {};
+    loans.forEach(function(l){ loanIds[l.id] = true; });
+
+    var linkedRepaidByLoan = {};
+    var generalRepaid = 0;
+    repayments.forEach(function(r){
+      if(r.loanId && loanIds[r.loanId]){
+        linkedRepaidByLoan[r.loanId] = (linkedRepaidByLoan[r.loanId] || 0) + r.amount;
+      } else {
+        generalRepaid += r.amount;
+      }
+    });
+
+    var loanDetails = loans.map(function(loan){
+      var repaidToThis = linkedRepaidByLoan[loan.id] || 0;
+      var rawRemaining = loan.amount - repaidToThis;
+      return {
+        loan: loan,
+        repaidToThis: repaidToThis,
+        remaining: Math.max(0, rawRemaining),
+        tip: Math.max(0, -rawRemaining)
+      };
+    });
+
+    var sumRemaining = loanDetails.reduce(function(a,d){ return a + d.remaining; }, 0);
+    var sumLinkedTips = loanDetails.reduce(function(a,d){ return a + d.tip; }, 0);
+    var afterGeneral = sumRemaining - generalRepaid;
+
+    return {
+      loanDetails: loanDetails,
+      owed: Math.max(0, afterGeneral),
+      tips: sumLinkedTips + Math.max(0, -afterGeneral)
+    };
+  }
+
+  function loanRemaining(loanId){
+    var loan = state.loanEntries.find(function(e){ return e.id===loanId; });
+    if(!loan) return 0;
+    var repaidToThis = state.loanEntries
+      .filter(function(e){ return e.type==='repaid' && e.loanId===loanId; })
+      .reduce(function(a,e){ return a+e.amount; }, 0);
+    return Math.max(0, loan.amount - repaidToThis);
+  }
+
   function updateNewPersonVisibility(){
     var sel = document.getElementById('loanPersonSelect');
     document.getElementById('loanNewPersonName').style.display = (sel.value==='__new__' || !sel.value) ? 'block' : 'none';
+    populateWhichLoanSelect();
+  }
+
+  function populateWhichLoanSelect(){
+    var wrap = document.getElementById('whichLoanWrap');
+    var sel = document.getElementById('whichLoanSelect');
+    var personId = document.getElementById('loanPersonSelect').value;
+    if(loanType !== 'repaid' || !personId || personId==='__new__'){
+      wrap.style.display = 'none';
+      return;
+    }
+    var outstanding = state.loanEntries.filter(function(e){
+      return e.personId===personId && e.type==='lent' && loanRemaining(e.id) > 0;
+    });
+    if(outstanding.length===0){
+      wrap.style.display = 'none';
+      return;
+    }
+    var prevVal = sel.value;
+    sel.innerHTML = '<option value="">General repayment (not linked to one loan)</option>' +
+      outstanding.map(function(l){
+        return '<option value="'+l.id+'">'+fmt(l.amount)+' lent '+l.date+' (' + fmt(loanRemaining(l.id)) + ' remaining)</option>';
+      }).join('');
+    if(outstanding.some(function(l){ return l.id===prevVal; })) sel.value = prevVal;
+    wrap.style.display = 'block';
   }
 
   function populateLoanPersonSelect(){
@@ -1612,11 +1693,41 @@
   var editingLoanId = null;
 
   function startEditLoan(entry){
+    // Navigate first: showView('loans') triggers renderLoans(), which
+    // repopulates the person/loan dropdowns from scratch. Doing that before
+    // filling in the edit fields (rather than after) means our values are
+    // the last thing applied, so nothing clobbers them afterward.
+    showView('loans');
     editingLoanId = entry.id;
     populateLoanPersonSelect();
     document.getElementById('loanPersonSelect').value = entry.personId;
     updateNewPersonVisibility();
     setLoanType(entry.type);
+    if(entry.type==='repaid'){
+      populateWhichLoanSelect();
+      // The loan this repayment was linked to might already be "settled"
+      // (remaining 0) precisely because of this repayment, in which case
+      // populateWhichLoanSelect() won't list it (or anything, if it was the
+      // person's only loan) and leaves the wrapper hidden. Rebuild the
+      // dropdown explicitly here so the linked loan is always selectable
+      // while editing it.
+      var wrap = document.getElementById('whichLoanWrap');
+      var sel = document.getElementById('whichLoanSelect');
+      if(entry.loanId && !Array.from(sel.options).some(function(o){ return o.value===entry.loanId; })){
+        var linkedLoan = state.loanEntries.find(function(e){ return e.id===entry.loanId; });
+        if(linkedLoan){
+          if(sel.options.length===0){
+            sel.innerHTML = '<option value="">General repayment (not linked to one loan)</option>';
+          }
+          var opt = document.createElement('option');
+          opt.value = linkedLoan.id;
+          opt.textContent = fmt(linkedLoan.amount)+' lent '+linkedLoan.date;
+          sel.appendChild(opt);
+        }
+      }
+      sel.value = entry.loanId || '';
+      if(entry.loanId) wrap.style.display = 'block';
+    }
     setLoanAccount(entry.account || 'bank');
     document.getElementById('loanAmount').value = entry.amount;
     document.getElementById('loanDate').value = entry.date;
@@ -1624,7 +1735,6 @@
     document.getElementById('loanEditBanner').style.display = 'block';
     document.getElementById('cancelEditLoan').style.display = 'block';
     document.getElementById('saveLoan').textContent = 'Update';
-    showView('loans');
   }
 
   function exitEditLoan(){
@@ -1635,6 +1745,7 @@
     document.getElementById('loanAmount').value = '';
     document.getElementById('loanNote').value = '';
     document.getElementById('loanDate').value = todayStr();
+    populateWhichLoanSelect();
   }
   document.getElementById('cancelEditLoan').addEventListener('click', exitEditLoan);
 
@@ -1644,6 +1755,7 @@
     var date = document.getElementById('loanDate').value || todayStr();
     var note = document.getElementById('loanNote').value.trim();
     var personId = document.getElementById('loanPersonSelect').value;
+    var loanId = loanType==='repaid' ? (document.getElementById('whichLoanSelect').value || null) : null;
 
     if(personId === '__new__' || !personId){
       var name = document.getElementById('loanNewPersonName').value.trim();
@@ -1651,6 +1763,14 @@
       personId = uid();
       state.loanPeople.push({ id: personId, name: name });
       save(LS_LOAN_PEOPLE, state.loanPeople);
+    }
+
+    var tipHeadsUp = '';
+    if(loanId){
+      var remainingBefore = loanRemaining(loanId);
+      if(amount > remainingBefore){
+        tipHeadsUp = ' (includes ' + fmt(amount-remainingBefore) + ' tip 🎉)';
+      }
     }
 
     if(editingLoanId){
@@ -1662,22 +1782,23 @@
         existing.date = date;
         existing.note = note;
         existing.account = loanAccount;
+        existing.loanId = loanId;
         save(LS_LOAN_ENTRIES, state.loanEntries);
-        toast('Entry updated');
+        toast('Entry updated' + tipHeadsUp);
       }
       exitEditLoan();
       renderLoans();
       return;
     }
 
-    state.loanEntries.push({ id: uid(), personId: personId, type: loanType, amount: amount, date: date, note: note, account: loanAccount, createdAt: Date.now() });
+    state.loanEntries.push({ id: uid(), personId: personId, type: loanType, amount: amount, date: date, note: note, account: loanAccount, loanId: loanId, createdAt: Date.now() });
     save(LS_LOAN_ENTRIES, state.loanEntries);
 
     document.getElementById('loanAmount').value = '';
     document.getElementById('loanNote').value = '';
     document.getElementById('loanNewPersonName').value = '';
     document.getElementById('loanNewPersonName').style.display = 'none';
-    toast(loanType==='lent' ? 'Loan recorded' : 'Repayment recorded');
+    toast((loanType==='lent' ? 'Loan recorded' : 'Repayment recorded') + tipHeadsUp);
     renderLoans();
   });
 
@@ -1689,11 +1810,12 @@
       peopleBox.innerHTML = '<div class="empty">No one owes you money yet</div>';
     } else {
       peopleBox.innerHTML = state.loanPeople.map(function(p){
-        var owed = personTotal(p.id);
-        var statusColor = owed>0 ? 'var(--warn)' : 'var(--accent)';
-        var statusText = owed>0 ? fmt(owed)+' owed' : (owed<0 ? fmt(Math.abs(owed))+' overpaid' : 'Settled up ✓');
+        var b = personLoanBreakdown(p.id);
+        var statusColor = b.owed>0 ? 'var(--warn)' : 'var(--accent)';
+        var statusText = b.owed>0 ? fmt(b.owed)+' owed' : 'Settled up ✓';
+        var tipText = b.tips>0 ? (' · 🎉 '+fmt(b.tips)+' tip received') : '';
         return '<div class="acc-card"><div class="top"><span class="name">'+escapeHtml(p.name)+'</span></div>'+
-          '<div class="amt" style="color:'+statusColor+';">'+statusText+'</div>'+
+          '<div class="amt" style="color:'+statusColor+';">'+statusText+'<span style="color:var(--accent);">'+tipText+'</span></div>'+
         '</div>';
       }).join('');
     }
@@ -1708,8 +1830,20 @@
       var cls = e.type==='lent' ? 'neg' : 'pos';
       var sign = e.type==='lent' ? '−' : '+';
       var acctLabel = e.account==='cash' ? '💵' : '🏦';
+      var linkNote = '';
+      if(e.type==='repaid' && e.loanId){
+        var linkedLoan = state.loanEntries.find(function(x){ return x.id===e.loanId; });
+        if(linkedLoan){
+          linkNote = ' → for the '+fmt(linkedLoan.amount)+' loan from '+linkedLoan.date;
+          var remainingNow = loanRemaining(e.loanId);
+          var linkedRepaidTotal = state.loanEntries.filter(function(x){ return x.type==='repaid' && x.loanId===e.loanId; }).reduce(function(a,x){return a+x.amount;},0);
+          if(linkedRepaidTotal > linkedLoan.amount && remainingNow===0){
+            linkNote += ' 🎉 tip';
+          }
+        }
+      }
       return '<div class="sav-item" data-id="'+e.id+'">'+
-        '<span>'+e.date+' · '+acctLabel+' '+escapeHtml(name)+(e.note? ' · '+escapeHtml(e.note):'')+'</span>'+
+        '<span>'+e.date+' · '+acctLabel+' '+escapeHtml(name)+(e.note? ' · '+escapeHtml(e.note):'')+escapeHtml(linkNote)+'</span>'+
         '<span class="amt '+cls+'">'+sign+fmt(e.amount)+'</span>'+
         '<button class="tx-del" data-id="'+e.id+'">✕</button>'+
       '</div>';
