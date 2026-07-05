@@ -27,7 +27,32 @@ self.addEventListener('activate', function(event) {
   self.clients.claim();
 });
 
+// Handles the Android "Share to" flow: the OS sends a POST with the shared
+// image as multipart/form-data straight to this URL (no server involved,
+// GitHub Pages can't run one). Stash the file in a cache and redirect to the
+// app itself, which picks it up via ?shared=1 and runs it through the same
+// OCR pipeline as manually tapping "Scan receipt".
+async function handleShareTarget(event) {
+  try {
+    const formData = await event.request.formData();
+    const file = formData.get('receipt_image');
+    if (file) {
+      const cache = await caches.open('shared-receipt');
+      await cache.put('/shared-receipt-image', new Response(file));
+    }
+  } catch (e) {
+    // fall through to redirect regardless, so the user isn't stuck on a blank POST response
+  }
+  return Response.redirect('./?shared=1', 303);
+}
+
 self.addEventListener('fetch', function(event) {
+  var shareUrl = new URL(event.request.url);
+  if (event.request.method === 'POST' && shareUrl.pathname.endsWith('/share-target/')) {
+    event.respondWith(handleShareTarget(event));
+    return;
+  }
+
   if (event.request.method !== 'GET') return;
   var url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return; // let cross-origin (fonts, Chart.js, rate API) hit the network directly
