@@ -284,6 +284,18 @@
     <!-- ADD -->
     <section class="view active" id="view-add">
       <div class="card">
+        <h2>Scan a receipt</h2>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Reads the photo on your phone (no upload, nothing leaves your device) and tries to guess the amount, date and merchant. Always double-check before saving.</div>
+        <input type="file" id="receiptFileInput" accept="image/*" capture="environment" style="display:none;">
+        <button class="btn-secondary" id="scanReceiptBtn" style="margin-top:0;">📷 Scan receipt</button>
+        <div id="receiptStatus" style="display:none;font-size:12px;color:var(--accent2);margin-top:10px;"></div>
+        <details id="receiptRawWrap" style="display:none;margin-top:10px;">
+          <summary style="font-size:11px;color:var(--muted);cursor:pointer;">Show raw scanned text</summary>
+          <div id="receiptRawText" style="font-size:11px;color:var(--muted);white-space:pre-wrap;margin-top:6px;max-height:150px;overflow-y:auto;"></div>
+        </details>
+      </div>
+
+      <div class="card">
         <div class="type-toggle">
           <button id="typeExpense" class="active expense">− Expense</button>
           <button id="typeIncome" class="income">+ Income</button>
@@ -755,6 +767,140 @@
       });
   }
   document.getElementById('refreshRate').addEventListener('click', fetchRate);
+
+  // ---------- Receipt scanning (in-browser OCR, no upload) ----------
+  var tesseractLoadPromise = null;
+  function loadTesseract(){
+    if(window.Tesseract) return Promise.resolve();
+    if(tesseractLoadPromise) return tesseractLoadPromise;
+    tesseractLoadPromise = new Promise(function(resolve, reject){
+      var script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    return tesseractLoadPromise;
+  }
+
+  function normalizeAmount(raw){
+    var s = raw.replace(/[^\d.,]/g, '');
+    var lastComma = s.lastIndexOf(',');
+    var lastDot = s.lastIndexOf('.');
+    if(lastComma > -1 && lastDot > -1){
+      if(lastComma > lastDot){ s = s.split('.').join('').replace(',', '.'); }
+      else { s = s.split(',').join(''); }
+    } else if(lastComma > -1){
+      var afterComma = s.length - lastComma - 1;
+      s = (afterComma === 2) ? s.replace(',', '.') : s.split(',').join('');
+    }
+    var n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  }
+
+  function normalizeDateParts(d, mo, y, twoDigitYear){
+    if(twoDigitYear) y = '20' + y;
+    mo = mo.padStart(2,'0');
+    d = d.padStart(2,'0');
+    var mm = parseInt(mo,10), dd = parseInt(d,10);
+    if(mm<1 || mm>12 || dd<1 || dd>31) return null;
+    return y+'-'+mo+'-'+d;
+  }
+
+  function parseReceiptText(text){
+    var lines = text.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+    var totalKeywords = /total|totale|importo|somma|paid|pagat|amount due|balance/i;
+    var amountRegex = /\d{1,3}(?:[.,]\d{3})*[.,]\d{2}/g;
+
+    var candidates = [];
+    lines.forEach(function(line){
+      var matches = line.match(amountRegex);
+      if(matches){
+        matches.forEach(function(m){
+          var val = normalizeAmount(m);
+          if(val !== null && val > 0 && val < 100000){
+            candidates.push({ value: val, isTotalLine: totalKeywords.test(line) });
+          }
+        });
+      }
+    });
+    var amount = null;
+    var totalCandidates = candidates.filter(function(c){ return c.isTotalLine; });
+    var pool = totalCandidates.length > 0 ? totalCandidates : candidates;
+    if(pool.length > 0){
+      amount = pool.reduce(function(max,c){ return c.value > max ? c.value : max; }, 0);
+    }
+
+    var dateRegexes = [
+      { re: /(\d{4})-(\d{1,2})-(\d{1,2})/, fn: function(m){ return normalizeDateParts(m[3], m[2], m[1], false); } },
+      { re: /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/, fn: function(m){ return normalizeDateParts(m[1], m[2], m[3], false); } },
+      { re: /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})\b/, fn: function(m){ return normalizeDateParts(m[1], m[2], m[3], true); } }
+    ];
+    var foundDate = null;
+    for(var i=0; i<lines.length && !foundDate; i++){
+      for(var r=0; r<dateRegexes.length; r++){
+        var m = lines[i].match(dateRegexes[r].re);
+        if(m){ foundDate = dateRegexes[r].fn(m); if(foundDate) break; }
+      }
+    }
+
+    var merchant = lines.find(function(l){
+      return l.length > 2 && l.length < 40 && !/^[\d\s.,€$\-\/:]+$/.test(l);
+    }) || '';
+
+    return { amount: amount, date: foundDate, merchant: merchant, rawText: text };
+  }
+
+  document.getElementById('scanReceiptBtn').addEventListener('click', function(){
+    document.getElementById('receiptFileInput').click();
+  });
+
+  document.getElementById('receiptFileInput').addEventListener('change', function(){
+    var file = this.files && this.files[0];
+    this.value = '';
+    if(!file) return;
+
+    var statusEl = document.getElementById('receiptStatus');
+    var btn = document.getElementById('scanReceiptBtn');
+    btn.disabled = true;
+    statusEl.style.display = 'block';
+    statusEl.textContent = '⏳ Loading OCR engine…';
+
+    loadTesseract().then(function(){
+      statusEl.textContent = '⏳ Reading receipt… this can take a few seconds';
+      return Tesseract.recognize(file, 'eng');
+    }).then(function(result){
+      var text = result.data.text || '';
+      var parsed = parseReceiptText(text);
+
+      if(parsed.amount !== null){
+        document.getElementById('amountInput').value = parsed.amount.toFixed(2);
+      }
+      if(parsed.date){
+        document.getElementById('dateInput').value = parsed.date;
+      }
+      if(parsed.merchant){
+        var noteInput = document.getElementById('noteInput');
+        noteInput.value = parsed.merchant;
+        noteInput.dispatchEvent(new Event('input'));
+      }
+
+      document.getElementById('receiptRawText').textContent = text.trim() || '(no text found)';
+      document.getElementById('receiptRawWrap').style.display = 'block';
+
+      var found = [];
+      if(parsed.amount !== null) found.push('amount');
+      if(parsed.date) found.push('date');
+      if(parsed.merchant) found.push('merchant');
+      statusEl.textContent = found.length > 0
+        ? ('✅ Guessed ' + found.join(', ') + ' — please double-check before saving')
+        : '⚠️ Could not confidently read this receipt — check the raw text below and fill in manually';
+    }).catch(function(err){
+      statusEl.textContent = '⚠️ Scan failed: ' + (err && err.message ? err.message : 'unknown error');
+    }).finally(function(){
+      btn.disabled = false;
+    });
+  });
 
   // ---------- Add transaction ----------
   var catGrid = document.getElementById('catGrid');
