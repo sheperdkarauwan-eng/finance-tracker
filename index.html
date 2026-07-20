@@ -492,6 +492,53 @@
       </div>
     </section>
 
+    <!-- TOURS -->
+    <section class="view" id="view-tours">
+      <div class="card">
+        <h2>Log a tour expense or reimbursement</h2>
+        <div class="type-toggle">
+          <button id="tourTypeExpense" class="active expense">Paid expense</button>
+          <button id="tourTypeReimb" class="income">Got reimbursed</button>
+        </div>
+
+        <label style="margin-top:0;">Tour</label>
+        <select id="tourSelect"></select>
+        <input type="text" id="tourNewName" placeholder="Tour name, e.g. Amalfi Coast group" style="display:none;margin-top:8px;">
+        <input type="text" id="tourNewClient" placeholder="Client / payer (optional)" style="display:none;margin-top:8px;">
+
+        <div id="tourCategoryPicker">
+          <label>Category</label>
+          <div class="cat-grid" id="tourCatGrid"></div>
+        </div>
+
+        <label>Account</label>
+        <div class="type-toggle" id="tourAccountToggle">
+          <button id="tourAcctBank" class="active">🏦 Bank</button>
+          <button id="tourAcctCash">💵 Cash</button>
+        </div>
+
+        <label>Amount (EUR)</label>
+        <input type="number" id="tourAmount" inputmode="decimal" step="0.01" placeholder="0.00">
+        <label>Date</label>
+        <input type="date" id="tourDate">
+        <label>Note (optional)</label>
+        <input type="text" id="tourNote" placeholder="e.g. ferry tickets for the group">
+        <div id="tourEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;">✏️ Editing an existing entry</div>
+        <button class="btn-primary" id="saveTour">Save</button>
+        <button class="btn-secondary" id="cancelEditTour" style="display:none;">Cancel edit</button>
+      </div>
+
+      <div class="card">
+        <h2>Your tours</h2>
+        <div id="tourList"></div>
+      </div>
+
+      <div class="card">
+        <h2>Tour history</h2>
+        <div id="tourHistoryList"></div>
+      </div>
+    </section>
+
     <!-- SETTINGS -->
     <section class="view" id="view-settings">
       <div class="card">
@@ -563,6 +610,7 @@
       <button data-view="history"><span class="ic">📜</span>History</button>
       <button data-view="savings"><span class="ic">🎯</span>Savings</button>
       <button data-view="loans"><span class="ic">🤝</span>Loans</button>
+      <button data-view="tours"><span class="ic">🧭</span>Tours</button>
     </div>
   </nav>
 
@@ -588,6 +636,16 @@
   var CAT_MAP = {};
   CATEGORIES.forEach(function(c){ CAT_MAP[c.key] = c; });
 
+  var TOUR_CATEGORIES = [
+    {key:'transport', label:'Transport', emoji:'🚌'},
+    {key:'tickets', label:'Tickets/Entrance', emoji:'🎫'},
+    {key:'food', label:'Food', emoji:'🍽️'},
+    {key:'accommodation', label:'Accommodation', emoji:'🏨'},
+    {key:'other', label:'Other', emoji:'📦'}
+  ];
+  var TOUR_CAT_MAP = {};
+  TOUR_CATEGORIES.forEach(function(c){ TOUR_CAT_MAP[c.key] = c; });
+
   // Do not rename these keys or the deployed URL/path - user data lives in
   // localStorage keyed to both, and renaming either orphans existing data.
   var LS_TX = 'pft_transactions_v1';
@@ -602,6 +660,8 @@
   var LS_SAVACC_ENTRIES = 'pft_savings_account_entries_v1';
   var LS_LOAN_PEOPLE = 'pft_loan_people_v1';
   var LS_LOAN_ENTRIES = 'pft_loan_entries_v1';
+  var LS_TOURS = 'pft_tours_v1';
+  var LS_TOUR_ENTRIES = 'pft_tour_entries_v1';
 
   var DEFAULT_BUDGETS = {};
   CATEGORIES.forEach(function(c){ DEFAULT_BUDGETS[c.key] = 0; });
@@ -628,6 +688,8 @@
     savingsAccountEntries: load(LS_SAVACC_ENTRIES, []),
     loanPeople: load(LS_LOAN_PEOPLE, []),
     loanEntries: load(LS_LOAN_ENTRIES, []),
+    tours: load(LS_TOURS, []),
+    tourEntries: load(LS_TOUR_ENTRIES, []),
     currency: load(LS_CURR, 'EUR'),
     txType: 'expense',
     txAccount: 'bank',
@@ -671,6 +733,12 @@
       var acct = e.account || 'bank';
       if(acct === 'cash') cash -= e.amount; else bank -= e.amount;
     });
+    state.tourEntries.forEach(function(te){
+      if((te.createdAt || 0) < asOfTs) return;
+      var acct = te.account || 'bank';
+      var sign = te.type === 'reimbursement' ? 1 : -1; // paying a tour expense out = -, getting reimbursed = +
+      if(acct === 'cash') cash += sign * te.amount; else bank += sign * te.amount;
+    });
     return { bank: bank, cash: cash };
   }
 
@@ -695,8 +763,8 @@
   }
 
   // ---------- Navigation ----------
-  var views = ['dashboard','add','history','savings','loans','settings'];
-  var titles = {dashboard:['Dashboard','Your money, at a glance'], add:['Add transaction','Log income or an expense'], history:['History','All your transactions'], savings:['Savings goal','€20,000 for your masters'], loans:['Loans','Money out, and money back'], settings:['Settings','Rates, goal & backup']};
+  var views = ['dashboard','add','history','savings','loans','tours','settings'];
+  var titles = {dashboard:['Dashboard','Your money, at a glance'], add:['Add transaction','Log income or an expense'], history:['History','All your transactions'], savings:['Savings goal','€20,000 for your masters'], loans:['Loans','Money out, and money back'], tours:['Tours','Advances you paid, and got back'], settings:['Settings','Rates, goal & backup']};
 
   function showView(name){
     views.forEach(function(v){
@@ -711,6 +779,7 @@
     if(name==='history') setHistoryTab(historyTab);
     if(name==='savings') renderSavings();
     if(name==='loans') renderLoans();
+    if(name==='tours') renderTours();
     if(name==='settings') renderSettings();
   }
   document.querySelectorAll('nav.bottom button').forEach(function(b){
@@ -2040,6 +2109,204 @@
     });
   }
 
+  // ---------- Tours (advances paid for tour groups, reimbursed later) ----------
+  var tourType = 'expense';
+  function setTourType(type){
+    tourType = type;
+    document.getElementById('tourTypeExpense').classList.toggle('active', type==='expense');
+    document.getElementById('tourTypeReimb').classList.toggle('active', type==='reimbursement');
+    document.getElementById('tourCategoryPicker').style.display = type==='expense' ? 'block' : 'none';
+  }
+  document.getElementById('tourTypeExpense').addEventListener('click', function(){ setTourType('expense'); });
+  document.getElementById('tourTypeReimb').addEventListener('click', function(){ setTourType('reimbursement'); });
+  setTourType('expense');
+  document.getElementById('tourDate').value = todayStr();
+
+  var tourAccount = 'bank';
+  function setTourAccount(acct){
+    tourAccount = acct;
+    document.getElementById('tourAcctBank').classList.toggle('active', acct==='bank');
+    document.getElementById('tourAcctCash').classList.toggle('active', acct==='cash');
+  }
+  document.getElementById('tourAcctBank').addEventListener('click', function(){ setTourAccount('bank'); });
+  document.getElementById('tourAcctCash').addEventListener('click', function(){ setTourAccount('cash'); });
+  setTourAccount('bank');
+
+  var selectedTourCategory = 'transport';
+  var tourCatGrid = document.getElementById('tourCatGrid');
+  function renderTourCatGrid(){
+    tourCatGrid.innerHTML = '';
+    TOUR_CATEGORIES.forEach(function(c){
+      var btn = document.createElement('div');
+      btn.className = 'cat-btn' + (selectedTourCategory===c.key ? ' active' : '');
+      btn.innerHTML = '<span class="emoji">'+c.emoji+'</span>'+c.label;
+      btn.addEventListener('click', function(){
+        selectedTourCategory = c.key;
+        renderTourCatGrid();
+      });
+      tourCatGrid.appendChild(btn);
+    });
+  }
+  renderTourCatGrid();
+
+  function tourBalance(tourId){
+    return state.tourEntries
+      .filter(function(e){ return e.tourId===tourId; })
+      .reduce(function(a,e){ return a + (e.type==='expense' ? e.amount : -e.amount); }, 0);
+  }
+
+  function updateNewTourVisibility(){
+    var sel = document.getElementById('tourSelect');
+    var isNew = sel.value==='__new__' || !sel.value;
+    document.getElementById('tourNewName').style.display = isNew ? 'block' : 'none';
+    document.getElementById('tourNewClient').style.display = isNew ? 'block' : 'none';
+  }
+
+  function populateTourSelect(){
+    var sel = document.getElementById('tourSelect');
+    var prevVal = sel.value;
+    var options = state.tours.map(function(t){ return '<option value="'+t.id+'">'+escapeHtml(t.name)+'</option>'; }).join('');
+    sel.innerHTML = options + '<option value="__new__">+ New tour</option>';
+    if(state.tours.some(function(t){ return t.id===prevVal; })) sel.value = prevVal;
+    updateNewTourVisibility();
+  }
+  document.getElementById('tourSelect').addEventListener('change', updateNewTourVisibility);
+
+  var editingTourEntryId = null;
+
+  function startEditTour(entry){
+    showView('tours');
+    editingTourEntryId = entry.id;
+    populateTourSelect();
+    document.getElementById('tourSelect').value = entry.tourId;
+    updateNewTourVisibility();
+    setTourType(entry.type);
+    if(entry.type==='expense'){
+      selectedTourCategory = entry.category || 'transport';
+      renderTourCatGrid();
+    }
+    setTourAccount(entry.account || 'bank');
+    document.getElementById('tourAmount').value = entry.amount;
+    document.getElementById('tourDate').value = entry.date;
+    document.getElementById('tourNote').value = entry.note || '';
+    document.getElementById('tourEditBanner').style.display = 'block';
+    document.getElementById('cancelEditTour').style.display = 'block';
+    document.getElementById('saveTour').textContent = 'Update';
+  }
+
+  function exitEditTour(){
+    editingTourEntryId = null;
+    document.getElementById('tourEditBanner').style.display = 'none';
+    document.getElementById('cancelEditTour').style.display = 'none';
+    document.getElementById('saveTour').textContent = 'Save';
+    document.getElementById('tourAmount').value = '';
+    document.getElementById('tourNote').value = '';
+    document.getElementById('tourDate').value = todayStr();
+  }
+  document.getElementById('cancelEditTour').addEventListener('click', exitEditTour);
+
+  document.getElementById('saveTour').addEventListener('click', function(){
+    var amount = parseFloat(document.getElementById('tourAmount').value);
+    if(isNaN(amount) || amount<=0){ toast('Enter a valid amount'); return; }
+    var date = document.getElementById('tourDate').value || todayStr();
+    var note = document.getElementById('tourNote').value.trim();
+    var tourId = document.getElementById('tourSelect').value;
+
+    if(tourId === '__new__' || !tourId){
+      var name = document.getElementById('tourNewName').value.trim();
+      if(!name){ toast('Enter a tour name'); return; }
+      var client = document.getElementById('tourNewClient').value.trim();
+      tourId = uid();
+      state.tours.push({ id: tourId, name: name, client: client, date: date });
+      save(LS_TOURS, state.tours);
+    }
+
+    if(editingTourEntryId){
+      var existing = state.tourEntries.find(function(e){ return e.id===editingTourEntryId; });
+      if(existing){
+        existing.tourId = tourId;
+        existing.type = tourType;
+        existing.amount = amount;
+        existing.date = date;
+        existing.note = note;
+        existing.account = tourAccount;
+        if(tourType==='expense') existing.category = selectedTourCategory; else delete existing.category;
+        save(LS_TOUR_ENTRIES, state.tourEntries);
+        toast('Entry updated');
+      }
+      exitEditTour();
+      renderTours();
+      return;
+    }
+
+    var entry = { id: uid(), tourId: tourId, type: tourType, amount: amount, date: date, note: note, account: tourAccount, createdAt: Date.now() };
+    if(tourType==='expense') entry.category = selectedTourCategory;
+    state.tourEntries.push(entry);
+    save(LS_TOUR_ENTRIES, state.tourEntries);
+
+    document.getElementById('tourAmount').value = '';
+    document.getElementById('tourNote').value = '';
+    document.getElementById('tourNewName').value = '';
+    document.getElementById('tourNewClient').value = '';
+    toast(tourType==='expense' ? 'Expense recorded' : 'Reimbursement recorded');
+    renderTours();
+  });
+
+  function renderTours(){
+    populateTourSelect();
+
+    var listBox = document.getElementById('tourList');
+    if(state.tours.length===0){
+      listBox.innerHTML = '<div class="empty">No tours yet</div>';
+    } else {
+      listBox.innerHTML = state.tours.map(function(t){
+        var bal = tourBalance(t.id);
+        var statusColor = bal>0 ? 'var(--warn)' : (bal<0 ? 'var(--accent2)' : 'var(--accent)');
+        var statusText = bal>0 ? (fmt(bal)+' still owed to you') : (bal<0 ? (fmt(Math.abs(bal))+' reimbursed over what you paid') : 'Fully reimbursed ✓');
+        var clientLine = t.client ? ('<div class="amt" style="margin-top:2px;">Client: '+escapeHtml(t.client)+'</div>') : '';
+        return '<div class="acc-card"><div class="top"><span class="name">'+escapeHtml(t.name)+'</span></div>'+
+          '<div class="amt" style="color:'+statusColor+';">'+statusText+'</div>'+
+          clientLine+
+        '</div>';
+      }).join('');
+    }
+
+    var histBox = document.getElementById('tourHistoryList');
+    var tourNames = {};
+    state.tours.forEach(function(t){ tourNames[t.id] = t.name; });
+    var list = state.tourEntries.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+    if(list.length===0){ histBox.innerHTML = '<div class="empty">No tour expenses logged yet</div>'; return; }
+    histBox.innerHTML = list.map(function(e){
+      var name = tourNames[e.tourId] || 'Unknown tour';
+      var cls = e.type==='expense' ? 'neg' : 'pos';
+      var sign = e.type==='expense' ? '−' : '+';
+      var acctLabel = e.account==='cash' ? '💵' : '🏦';
+      var catLabel = e.type==='expense' && TOUR_CAT_MAP[e.category] ? (TOUR_CAT_MAP[e.category].emoji+' '+TOUR_CAT_MAP[e.category].label+' · ') : '';
+      return '<div class="sav-item" data-id="'+e.id+'">'+
+        '<span>'+e.date+' · '+acctLabel+' '+catLabel+escapeHtml(name)+(e.note? ' · '+escapeHtml(e.note):'')+'</span>'+
+        '<span class="amt '+cls+'">'+sign+fmt(e.amount)+'</span>'+
+        '<button class="tx-del" data-id="'+e.id+'">✕</button>'+
+      '</div>';
+    }).join('');
+    histBox.querySelectorAll('.sav-item').forEach(function(row){
+      row.addEventListener('click', function(){
+        var id = row.getAttribute('data-id');
+        var entry = state.tourEntries.find(function(e){ return e.id===id; });
+        if(entry) startEditTour(entry);
+      });
+    });
+    histBox.querySelectorAll('.tx-del').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var id = btn.getAttribute('data-id');
+        state.tourEntries = state.tourEntries.filter(function(e){ return e.id!==id; });
+        save(LS_TOUR_ENTRIES, state.tourEntries);
+        toast('Deleted');
+        renderTours();
+      });
+    });
+  }
+
   // ---------- Settings ----------
   function renderBudgetInputs(){
     var box = document.getElementById('budgetInputs');
@@ -2124,7 +2391,7 @@
   });
 
   document.getElementById('exportBtn').addEventListener('click', function(){
-    var data = { transactions: state.transactions, savings: state.savings, goal: state.goal, budgets: state.budgets, accounts: state.accounts, transfers: state.transfers, savingsAccounts: state.savingsAccounts, savingsAccountEntries: state.savingsAccountEntries, loanPeople: state.loanPeople, loanEntries: state.loanEntries, rate: state.rate };
+    var data = { transactions: state.transactions, savings: state.savings, goal: state.goal, budgets: state.budgets, accounts: state.accounts, transfers: state.transfers, savingsAccounts: state.savingsAccounts, savingsAccountEntries: state.savingsAccountEntries, loanPeople: state.loanPeople, loanEntries: state.loanEntries, tours: state.tours, tourEntries: state.tourEntries, rate: state.rate };
     document.getElementById('exportBox').value = JSON.stringify(data, null, 2);
     toast('Exported below — copy it somewhere safe');
   });
@@ -2141,6 +2408,8 @@
       if(data.savingsAccountEntries) { state.savingsAccountEntries = data.savingsAccountEntries; save(LS_SAVACC_ENTRIES, state.savingsAccountEntries); }
       if(data.loanPeople) { state.loanPeople = data.loanPeople; save(LS_LOAN_PEOPLE, state.loanPeople); }
       if(data.loanEntries) { state.loanEntries = data.loanEntries; save(LS_LOAN_ENTRIES, state.loanEntries); }
+      if(data.tours) { state.tours = data.tours; save(LS_TOURS, state.tours); }
+      if(data.tourEntries) { state.tourEntries = data.tourEntries; save(LS_TOUR_ENTRIES, state.tourEntries); }
       if(data.rate) { state.rate = data.rate; save(LS_RATE, state.rate); }
       toast('Data imported');
       renderSettings();
@@ -2159,6 +2428,8 @@
       localStorage.removeItem(LS_SAVACC_ENTRIES);
       localStorage.removeItem(LS_LOAN_PEOPLE);
       localStorage.removeItem(LS_LOAN_ENTRIES);
+      localStorage.removeItem(LS_TOURS);
+      localStorage.removeItem(LS_TOUR_ENTRIES);
       location.reload();
     }
   });
