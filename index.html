@@ -505,6 +505,7 @@
         <select id="tourSelect"></select>
         <input type="text" id="tourNewName" placeholder="Tour name, e.g. Amalfi Coast group" style="display:none;margin-top:8px;">
         <input type="text" id="tourNewClient" placeholder="Client / payer (optional)" style="display:none;margin-top:8px;">
+        <div id="tourBalanceHint" style="display:none;font-size:11.5px;color:var(--accent2);margin-top:6px;"></div>
 
         <div id="tourCategoryPicker">
           <label>Category</label>
@@ -2160,6 +2161,21 @@
     var isNew = sel.value==='__new__' || !sel.value;
     document.getElementById('tourNewName').style.display = isNew ? 'block' : 'none';
     document.getElementById('tourNewClient').style.display = isNew ? 'block' : 'none';
+
+    var hint = document.getElementById('tourBalanceHint');
+    if(isNew){
+      hint.style.display = 'none';
+    } else {
+      var bal = tourBalance(sel.value);
+      if(bal > 0){
+        hint.textContent = '⚠️ ' + fmt(bal) + ' still owed to you for this tour';
+      } else if(bal < 0){
+        hint.textContent = '💰 ' + fmt(Math.abs(bal)) + ' float already in hand for this tour - use it before asking for more';
+      } else {
+        hint.textContent = '✅ This tour is settled up so far';
+      }
+      hint.style.display = 'block';
+    }
   }
 
   function populateTourSelect(){
@@ -2262,7 +2278,7 @@
       listBox.innerHTML = state.tours.map(function(t){
         var bal = tourBalance(t.id);
         var statusColor = bal>0 ? 'var(--warn)' : (bal<0 ? 'var(--accent2)' : 'var(--accent)');
-        var statusText = bal>0 ? (fmt(bal)+' still owed to you') : (bal<0 ? (fmt(Math.abs(bal))+' reimbursed over what you paid') : 'Fully reimbursed ✓');
+        var statusText = bal>0 ? (fmt(bal)+' still owed to you') : (bal<0 ? ('💰 '+fmt(Math.abs(bal))+' float in hand for this group\'s future expenses') : 'Fully reimbursed ✓');
         var clientLine = t.client ? ('<div class="amt" style="margin-top:2px;">Client: '+escapeHtml(t.client)+'</div>') : '';
         return '<div class="acc-card"><div class="top"><span class="name">'+escapeHtml(t.name)+'</span></div>'+
           '<div class="amt" style="color:'+statusColor+';">'+statusText+'</div>'+
