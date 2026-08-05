@@ -398,6 +398,11 @@
           <div class="budget-summary-line" id="rBudgetSummary"></div>
           <div id="rCatList"></div>
         </div>
+
+        <div class="card">
+          <button class="btn-secondary" id="downloadRecapPdf" style="margin-top:0;">📄 Download PDF</button>
+          <div id="recapPdfStatus" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;text-align:center;"></div>
+        </div>
       </div>
     </section>
 
@@ -489,6 +494,11 @@
       <div class="card">
         <h2>Loan history</h2>
         <div id="loanHistoryList"></div>
+      </div>
+
+      <div class="card">
+        <button class="btn-secondary" id="downloadLoansPdf" style="margin-top:0;">📄 Download PDF</button>
+        <div id="loansPdfStatus" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;text-align:center;"></div>
       </div>
     </section>
 
@@ -852,6 +862,151 @@
     });
     return tesseractLoadPromise;
   }
+
+  // ---------- PDF export (jsPDF + autotable, no backend) ----------
+  var jsPDFLoadPromise = null;
+  function loadJsPDF(){
+    if(window.jspdf && window.jspdf.jsPDF.API.autoTable) return Promise.resolve();
+    if(jsPDFLoadPromise) return jsPDFLoadPromise;
+    jsPDFLoadPromise = new Promise(function(resolve, reject){
+      var s1 = document.createElement('script');
+      s1.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+      s1.onload = function(){
+        var s2 = document.createElement('script');
+        s2.src = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js';
+        s2.onload = resolve;
+        s2.onerror = reject;
+        document.head.appendChild(s2);
+      };
+      s1.onerror = reject;
+      document.head.appendChild(s1);
+    });
+    return jsPDFLoadPromise;
+  }
+
+  function pdfHeader(doc, title){
+    doc.setFontSize(18);
+    doc.setTextColor(20);
+    doc.text(title, 14, 18);
+    doc.setFontSize(10);
+    doc.setTextColor(130);
+    doc.text('Generated ' + new Date().toLocaleString(), 14, 25);
+    doc.setTextColor(20);
+    return 34;
+  }
+
+  document.getElementById('downloadRecapPdf').addEventListener('click', function(){
+    var statusEl = document.getElementById('recapPdfStatus');
+    var btn = document.getElementById('downloadRecapPdf');
+    btn.disabled = true;
+    statusEl.style.display = 'block';
+    statusEl.textContent = '⏳ Building PDF…';
+
+    loadJsPDF().then(function(){
+      var mk = document.getElementById('recapMonth').value;
+      var monthLabel = new Date(mk+'-01').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+      var cur = computeMonthTotals(mk);
+      var prev = computeMonthTotals(shiftMonth(mk,-1));
+      var isCurrentMonth = mk === new Date().toISOString().slice(0,7);
+      var insights = computeInsights(mk, isCurrentMonth);
+
+      var doc = new window.jspdf.jsPDF();
+      var y = pdfHeader(doc, 'Monthly Recap — ' + monthLabel);
+
+      doc.setFontSize(12);
+      doc.text('Summary', 14, y); y += 4;
+      doc.autoTable({
+        startY: y, theme: 'plain', margin:{left:14},
+        body: [
+          ['Income', fmt(cur.income) + (prev.income>0 ? ' (' + (cur.income>=prev.income?'+':'') + Math.round(((cur.income-prev.income)/prev.income)*100) + '% vs last month)' : '')],
+          ['Expenses', fmt(cur.expense) + (prev.expense>0 ? ' (' + (cur.expense>=prev.expense?'+':'') + Math.round(((cur.expense-prev.expense)/prev.expense)*100) + '% vs last month)' : '')],
+          ['Net', fmtSigned(cur.income-cur.expense)],
+          ['Savings added', fmtSigned(cur.savings)],
+          ['Unexpected spending', fmt(cur.catTotals['unexpected']||0)]
+        ]
+      });
+      y = doc.lastAutoTable.finalY + 10;
+
+      if(insights.length>0){
+        doc.setFontSize(12);
+        doc.text('Insights', 14, y); y += 4;
+        doc.autoTable({
+          startY: y, margin:{left:14},
+          head: [['']],
+          body: insights.map(function(i){ return [(i.type==='warning'?'[!] ':i.type==='success'?'[OK] ':'[i] ') + i.text.replace(/<[^>]+>/g,'')]; }),
+          showHead: false
+        });
+        y = doc.lastAutoTable.finalY + 10;
+      }
+
+      doc.setFontSize(12);
+      doc.text('Category breakdown & budget', 14, y); y += 4;
+      var rows = CATEGORIES.map(function(c){
+        var spent = cur.catTotals[c.key] || 0;
+        var budget = state.budgets[c.key] || 0;
+        var status = budget>0 ? (spent>budget ? 'Over budget' : 'OK') : '—';
+        return [c.label, fmt(spent), budget>0 ? fmt(budget) : '—', status];
+      });
+      doc.autoTable({ startY: y, head: [['Category','Spent','Budget','Status']], body: rows, margin:{left:14} });
+
+      doc.save('recap-' + mk + '.pdf');
+      statusEl.style.display = 'none';
+    }).catch(function(err){
+      statusEl.textContent = '⚠️ Could not build PDF: ' + (err && err.message ? err.message : 'unknown error');
+    }).finally(function(){
+      btn.disabled = false;
+    });
+  });
+
+  document.getElementById('downloadLoansPdf').addEventListener('click', function(){
+    var statusEl = document.getElementById('loansPdfStatus');
+    var btn = document.getElementById('downloadLoansPdf');
+    btn.disabled = true;
+    statusEl.style.display = 'block';
+    statusEl.textContent = '⏳ Building PDF…';
+
+    loadJsPDF().then(function(){
+      var doc = new window.jspdf.jsPDF();
+      var y = pdfHeader(doc, 'Loans — money people owe you');
+
+      doc.setFontSize(12);
+      doc.text('Status by person', 14, y); y += 4;
+      var peopleRows = state.loanPeople.map(function(p){
+        var b = personLoanBreakdown(p.id);
+        var status = b.owed>0 ? (fmt(b.owed) + ' owed') : 'Settled up';
+        if(b.tips>0) status += ' (+' + fmt(b.tips) + ' tip received)';
+        return [p.name, status];
+      });
+      doc.autoTable({
+        startY: y, margin:{left:14},
+        head: [['Person','Status']],
+        body: peopleRows.length>0 ? peopleRows : [['—','No one owes you money yet']]
+      });
+      y = doc.lastAutoTable.finalY + 10;
+
+      doc.setFontSize(12);
+      doc.text('Full history', 14, y); y += 4;
+      var peopleNames = {};
+      state.loanPeople.forEach(function(p){ peopleNames[p.id] = p.name; });
+      var histRows = state.loanEntries.slice()
+        .sort(function(a,b){ return a.date.localeCompare(b.date); })
+        .map(function(e){
+          return [e.date, peopleNames[e.personId] || 'Unknown', e.type==='lent' ? 'Lent' : 'Repaid', e.account==='cash' ? 'Cash' : 'Bank', fmt(e.amount), e.note || ''];
+        });
+      doc.autoTable({
+        startY: y, margin:{left:14},
+        head: [['Date','Person','Type','Account','Amount','Note']],
+        body: histRows.length>0 ? histRows : [['—','—','—','—','—','No entries yet']]
+      });
+
+      doc.save('loans.pdf');
+      statusEl.style.display = 'none';
+    }).catch(function(err){
+      statusEl.textContent = '⚠️ Could not build PDF: ' + (err && err.message ? err.message : 'unknown error');
+    }).finally(function(){
+      btn.disabled = false;
+    });
+  });
 
   function normalizeAmount(raw){
     var s = raw.replace(/[^\d.,]/g, '');
