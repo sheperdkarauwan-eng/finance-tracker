@@ -548,6 +548,11 @@
         <h2>Tour history</h2>
         <div id="tourHistoryList"></div>
       </div>
+
+      <div class="card">
+        <button class="btn-secondary" id="downloadToursPdf" style="margin-top:0;">📄 Download PDF</button>
+        <div id="toursPdfStatus" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;text-align:center;"></div>
+      </div>
     </section>
 
     <!-- SETTINGS -->
@@ -1000,6 +1005,56 @@
       });
 
       doc.save('loans.pdf');
+      statusEl.style.display = 'none';
+    }).catch(function(err){
+      statusEl.textContent = '⚠️ Could not build PDF: ' + (err && err.message ? err.message : 'unknown error');
+    }).finally(function(){
+      btn.disabled = false;
+    });
+  });
+
+  document.getElementById('downloadToursPdf').addEventListener('click', function(){
+    var statusEl = document.getElementById('toursPdfStatus');
+    var btn = document.getElementById('downloadToursPdf');
+    btn.disabled = true;
+    statusEl.style.display = 'block';
+    statusEl.textContent = '⏳ Building PDF…';
+
+    loadJsPDF().then(function(){
+      var doc = new window.jspdf.jsPDF();
+      var y = pdfHeader(doc, 'Tours — advances paid and reimbursed');
+
+      doc.setFontSize(12);
+      doc.text('Status by tour', 14, y); y += 4;
+      var tourRows = state.tours.map(function(t){
+        var bal = tourBalance(t.id);
+        var status = bal>0 ? (fmt(bal) + ' still owed to you') : (bal<0 ? (fmt(Math.abs(bal)) + ' float in hand') : 'Fully reimbursed');
+        return [t.name, t.client || '—', status];
+      });
+      doc.autoTable({
+        startY: y, margin:{left:14},
+        head: [['Tour','Client','Status']],
+        body: tourRows.length>0 ? tourRows : [['—','—','No tours yet']]
+      });
+      y = doc.lastAutoTable.finalY + 10;
+
+      doc.setFontSize(12);
+      doc.text('Full history', 14, y); y += 4;
+      var tourNames = {};
+      state.tours.forEach(function(t){ tourNames[t.id] = t.name; });
+      var histRows = state.tourEntries.slice()
+        .sort(function(a,b){ return a.date.localeCompare(b.date); })
+        .map(function(e){
+          var cat = e.type==='expense' && TOUR_CAT_MAP[e.category] ? TOUR_CAT_MAP[e.category].label : '—';
+          return [e.date, tourNames[e.tourId] || 'Unknown', e.type==='expense' ? 'Paid' : 'Reimbursed', cat, e.account==='cash' ? 'Cash' : 'Bank', fmt(e.amount), e.note || ''];
+        });
+      doc.autoTable({
+        startY: y, margin:{left:14},
+        head: [['Date','Tour','Type','Category','Account','Amount','Note']],
+        body: histRows.length>0 ? histRows : [['—','—','—','—','—','—','No entries yet']]
+      });
+
+      doc.save('tours.pdf');
       statusEl.style.display = 'none';
     }).catch(function(err){
       statusEl.textContent = '⚠️ Could not build PDF: ' + (err && err.message ? err.message : 'unknown error');
