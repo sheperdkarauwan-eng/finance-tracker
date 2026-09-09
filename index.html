@@ -6,6 +6,14 @@
 <title>My Finance Tracker</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#000000">
+<script>
+  (function(){
+    try{
+      var t = localStorage.getItem('pft_theme_v1');
+      if(t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    }catch(e){}
+  })();
+</script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -27,15 +35,31 @@
     --text:#f5f5f5;
     --muted:#9a9a9a;
     --border:#2a2a2a;
+    --header-bg:rgba(0,0,0,0.92);
+    --accent2-bg:#12293f;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  :root[data-theme="light"]{
+    --bg:#eaf4ee;
+    --card:#ffffff;
+    --card2:#e0eee6;
+    --accent:#1c9d6c;
+    --accent2:#2f6fe0;
+    --danger:#e14b3f;
+    --warn:#c97a12;
+    --text:#16241c;
+    --muted:#5d6f65;
+    --border:#cfe3d7;
+    --header-bg:rgba(234,244,238,0.92);
+    --accent2-bg:#dbe9ff;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
   body{padding-top:var(--safe-top);}
   #app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
   header.top{
-    position:sticky;top:0;z-index:10;background:rgba(0,0,0,0.92);backdrop-filter:blur(8px);
+    position:sticky;top:0;z-index:10;background:var(--header-bg);backdrop-filter:blur(8px);
     padding:14px 16px 10px;border-bottom:1px solid var(--border);
   }
   header.top h1{font-size:17px;margin:0 0 2px;font-weight:700;}
@@ -96,7 +120,7 @@
   .cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
   .cat-btn{padding:10px 4px;border-radius:12px;border:1px solid var(--border);background:var(--card2);color:var(--muted);font-size:11px;text-align:center;cursor:pointer;}
   .cat-btn .emoji{font-size:20px;display:block;margin-bottom:2px;}
-  .cat-btn.active{border-color:var(--accent2);background:#12293f;color:var(--text);}
+  .cat-btn.active{border-color:var(--accent2);background:var(--accent2-bg);color:var(--text);}
 
   .btn-primary{width:100%;padding:14px;border-radius:12px;border:none;background:var(--accent2);color:#04121f;font-weight:700;font-size:15px;margin-top:18px;}
   .btn-primary:active{opacity:.85;}
@@ -154,7 +178,7 @@
   /* Bottom nav */
   nav.bottom{
     position:fixed;bottom:0;left:0;right:0;z-index:20;
-    background:rgba(0,0,0,0.96);backdrop-filter:blur(10px);border-top:1px solid var(--border);
+    background:var(--header-bg);backdrop-filter:blur(10px);border-top:1px solid var(--border);
     display:flex;justify-content:center;
     padding-bottom:var(--safe-bottom);
   }
@@ -351,6 +375,9 @@
               <option value="date" selected>Sort: Date</option>
               <option value="category">Group: Category</option>
             </select>
+          </div>
+          <div class="filters" id="jumpCategoryWrap" style="display:none;">
+            <select id="jumpCategory"></select>
           </div>
           <div id="txList"></div>
         </div>
@@ -573,6 +600,14 @@
 
     <!-- SETTINGS -->
     <section class="view" id="view-settings">
+      <div class="card">
+        <h2>Appearance</h2>
+        <div class="curr-toggle" style="margin-bottom:0;">
+          <button id="btnThemeDark" class="active">🌙 Dark</button>
+          <button id="btnThemeLight">☀️ Light</button>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Balances</h2>
         <div class="settings-row"><span id="currentBalLine">-</span></div>
@@ -836,6 +871,26 @@
     document.getElementById('btnIDR').classList.add('active');
     document.getElementById('btnEUR').classList.remove('active');
   }
+
+  var LS_THEME = 'pft_theme_v1';
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme', theme==='light' ? 'light' : '');
+    document.getElementById('btnThemeDark').classList.toggle('active', theme!=='light');
+    document.getElementById('btnThemeLight').classList.toggle('active', theme==='light');
+    var bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', bg);
+  }
+  document.getElementById('btnThemeDark').addEventListener('click', function(){
+    save(LS_THEME, 'dark');
+    applyTheme('dark');
+    renderDashboard();
+  });
+  document.getElementById('btnThemeLight').addEventListener('click', function(){
+    save(LS_THEME, 'light');
+    applyTheme('light');
+    renderDashboard();
+  });
+  applyTheme(load(LS_THEME, 'dark'));
 
   function updateRateLine(){
     var line = document.getElementById('rateLine');
@@ -1708,6 +1763,10 @@
     }
 
     // Category chart
+    var cs = getComputedStyle(document.documentElement);
+    var chartText = cs.getPropertyValue('--text').trim();
+    var chartMuted = cs.getPropertyValue('--muted').trim();
+    var chartBorder = cs.getPropertyValue('--border').trim();
     var labels=[], data=[], colors=['#3ddc97','#4f9dff','#ffb84f','#ff6b6b','#c084fc','#f472b6','#38bdf8','#fbbf24'];
     CATEGORIES.forEach(function(c,i){
       if(catTotals[c.key]){ labels.push(c.emoji+' '+c.label); data.push(catTotals[c.key]); }
@@ -1721,7 +1780,7 @@
         type:'doughnut',
         data:{ labels:labels, datasets:[{data:data, backgroundColor:colors, borderWidth:0}] },
         options:{
-          plugins:{ legend:{ position:'bottom', labels:{color:'#f5f5f5', boxWidth:12, font:{size:10, family:CHART_FONT}} } },
+          plugins:{ legend:{ position:'bottom', labels:{color:chartText, boxWidth:12, font:{size:10, family:CHART_FONT}} } },
           maintainAspectRatio:false,
           cutout:'60%'
         }
@@ -1758,10 +1817,10 @@
       options:{
         maintainAspectRatio:false,
         scales:{
-          x:{ ticks:{color:'#9a9a9a', font:{family:CHART_FONT}}, grid:{display:false} },
-          y:{ ticks:{color:'#9a9a9a', font:{family:CHART_FONT}}, grid:{color:'#2a2a2a'} }
+          x:{ ticks:{color:chartMuted, font:{family:CHART_FONT}}, grid:{display:false} },
+          y:{ ticks:{color:chartMuted, font:{family:CHART_FONT}}, grid:{color:chartBorder} }
         },
-        plugins:{ legend:{ labels:{color:'#f5f5f5', font:{family:CHART_FONT}} } }
+        plugins:{ legend:{ labels:{color:chartText, font:{family:CHART_FONT}} } }
       }
     });
   }
@@ -1805,16 +1864,35 @@
     order.sort(function(a,b){ return groups[b].total - groups[a].total; });
     return order.map(function(key){
       var g = groups[key];
-      return '<div class="budget-row" style="margin-top:6px;"><div class="top"><span class="cat">'+g.emoji+' '+escapeHtml(g.label)+'</span><span class="amt">'+fmt(g.total)+'</span></div></div>'+
-        g.items.map(txRowHtml).join('');
+      return '<div class="cat-group" id="catgroup-'+key+'">'+
+        '<div class="budget-row" style="margin-top:6px;"><div class="top"><span class="cat">'+g.emoji+' '+escapeHtml(g.label)+'</span><span class="amt">'+fmt(g.total)+'</span></div></div>'+
+        g.items.map(txRowHtml).join('') +
+      '</div>';
     }).join('');
   }
+
+  function populateJumpCategory(){
+    var sel = document.getElementById('jumpCategory');
+    var options = ['<option value="">Jump to category…</option>', '<option value="__income__">💰 Income</option>'];
+    CATEGORIES.forEach(function(c){ options.push('<option value="'+c.key+'">'+c.emoji+' '+c.label+'</option>'); });
+    sel.innerHTML = options.join('');
+  }
+  populateJumpCategory();
+  document.getElementById('jumpCategory').addEventListener('change', function(){
+    var key = this.value;
+    this.value = '';
+    if(!key) return;
+    var el = document.getElementById('catgroup-'+key);
+    if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+    else toast('No entries in that category yet');
+  });
 
   function renderHistory(){
     populateMonthFilter();
     var mFilter = document.getElementById('filterMonth').value;
     var tFilter = document.getElementById('filterType').value;
     var viewMode = document.getElementById('viewMode').value;
+    document.getElementById('jumpCategoryWrap').style.display = viewMode==='category' ? 'flex' : 'none';
     var list = state.transactions.slice().sort(function(a,b){ return b.date.localeCompare(a.date) || 0; });
     list = list.filter(function(t){
       if(mFilter!=='all' && monthKey(t.date)!==mFilter) return false;
