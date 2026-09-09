@@ -347,6 +347,10 @@
               <option value="expense">Expenses</option>
               <option value="income">Income</option>
             </select>
+            <select id="viewMode">
+              <option value="date" selected>Sort: Date</option>
+              <option value="category">Group: Category</option>
+            </select>
           </div>
           <div id="txList"></div>
         </div>
@@ -354,8 +358,20 @@
 
       <div id="historyRecap" style="display:none;">
         <div class="card">
-          <label style="margin-top:0;">Month</label>
-          <select id="recapMonth"></select>
+          <div class="type-toggle" style="margin-top:0;margin-bottom:12px;">
+            <button id="recapModeMonth" class="active">Month</button>
+            <button id="recapModeRange">Custom range</button>
+          </div>
+          <div id="recapMonthPicker">
+            <label style="margin-top:0;">Month</label>
+            <select id="recapMonth"></select>
+          </div>
+          <div id="recapRangePicker" style="display:none;">
+            <label style="margin-top:0;">From</label>
+            <input type="date" id="recapFrom">
+            <label>To</label>
+            <input type="date" id="recapTo">
+          </div>
         </div>
 
         <div class="card">
@@ -908,6 +924,43 @@
     statusEl.textContent = '⏳ Building PDF…';
 
     loadJsPDF().then(function(){
+      if(recapMode==='range'){
+        var from = document.getElementById('recapFrom').value;
+        var to = document.getElementById('recapTo').value;
+        if(!from || !to || from>to) throw new Error('Pick a valid "From" and "To" date first');
+        var cur = computeRangeTotals(from, to);
+
+        var doc = new window.jspdf.jsPDF();
+        var y = pdfHeader(doc, 'Recap — ' + from + ' to ' + to);
+
+        doc.setFontSize(12);
+        doc.text('Summary', 14, y); y += 4;
+        doc.autoTable({
+          startY: y, theme: 'plain', margin:{left:14},
+          body: [
+            ['Income', fmt(cur.income)],
+            ['Expenses', fmt(cur.expense)],
+            ['Net', fmtSigned(cur.income-cur.expense)],
+            ['Savings added', fmtSigned(cur.savings)],
+            ['Unexpected spending', fmt(cur.catTotals['unexpected']||0)]
+          ]
+        });
+        y = doc.lastAutoTable.finalY + 10;
+
+        doc.setFontSize(12);
+        doc.text('Category breakdown', 14, y); y += 4;
+        var rangeRows = CATEGORIES.map(function(c){
+          var spent = cur.catTotals[c.key] || 0;
+          var pct = cur.expense>0 ? (spent/cur.expense*100) : 0;
+          return [c.label, fmt(spent), spent>0 ? pct.toFixed(0)+'%' : '—'];
+        }).filter(function(r,i){ return (cur.catTotals[CATEGORIES[i].key]||0) > 0; });
+        doc.autoTable({ startY: y, head: [['Category','Spent','% of total']], body: rangeRows.length>0 ? rangeRows : [['—','—','No expenses in this range']], margin:{left:14} });
+
+        doc.save('recap-' + from + '_to_' + to + '.pdf');
+        statusEl.style.display = 'none';
+        return;
+      }
+
       var mk = document.getElementById('recapMonth').value;
       var monthLabel = new Date(mk+'-01').toLocaleDateString('en-US',{month:'long',year:'numeric'});
       var cur = computeMonthTotals(mk);
@@ -1436,6 +1489,29 @@
     }).join('');
   }
 
+  function computeRangeTotals(from, to){
+    var income=0, expense=0, catTotals={};
+    state.transactions.forEach(function(t){
+      if(t.date>=from && t.date<=to){
+        if(t.type==='income') income += t.amount;
+        else { expense += t.amount; catTotals[t.category] = (catTotals[t.category]||0) + t.amount; }
+      }
+    });
+    var savings = state.savings.filter(function(s){ return s.date>=from && s.date<=to; }).reduce(function(a,s){return a+s.amount;},0);
+    return { income:income, expense:expense, catTotals:catTotals, savings:savings };
+  }
+
+  function buildCategoryShareRows(catTotals, totalExpense){
+    var rows = CATEGORIES.map(function(c){ return { c:c, spent: catTotals[c.key]||0 }; }).filter(function(r){ return r.spent>0; });
+    if(rows.length===0) return '<div class="empty">No expenses in this range</div>';
+    rows.sort(function(a,b){ return b.spent-a.spent; });
+    return rows.map(function(r){
+      var pct = totalExpense>0 ? (r.spent/totalExpense*100) : 0;
+      return '<div class="budget-row"><div class="top"><span class="cat">'+r.c.emoji+' '+r.c.label+'</span><span class="amt">'+fmt(r.spent)+' · '+pct.toFixed(0)+'%</span></div>'+
+        '<div class="budget-bar-wrap"><div class="budget-bar-fill" style="width:'+pct+'%"></div></div></div>';
+    }).join('');
+  }
+
   var GENERAL_TIPS = [
     'Move part of every irregular payment into Savings the same day you receive it — future you won\'t miss what past you never saw.',
     'Since your income is irregular, plan your budget around your lowest realistic month, not your best one.',
@@ -1701,11 +1777,44 @@
   }
   document.getElementById('filterMonth').addEventListener('change', renderHistory);
   document.getElementById('filterType').addEventListener('change', renderHistory);
+  document.getElementById('viewMode').addEventListener('change', renderHistory);
+
+  function txRowHtml(t){
+    var emoji = t.type==='income' ? '💰' : (CAT_MAP[t.category] ? CAT_MAP[t.category].emoji : '❓');
+    var label = t.type==='income' ? (t.source || 'Income') : (CAT_MAP[t.category] ? CAT_MAP[t.category].label : 'Other');
+    var noteHtml = t.note ? ('<div class="tx-note">'+escapeHtml(t.note)+'</div>') : '';
+    return '<div class="tx-item" data-id="'+t.id+'">'+
+      '<div class="tx-emoji">'+emoji+'</div>'+
+      '<div class="tx-mid"><div class="tx-cat">'+escapeHtml(label)+'</div>'+noteHtml+'<div class="tx-date">'+t.date+'</div></div>'+
+      '<div class="tx-amt '+t.type+'">'+(t.type==='income'?'+':'−')+fmt(t.amount)+'</div>'+
+      '<button class="tx-del" data-id="'+t.id+'">✕</button>'+
+    '</div>';
+  }
+
+  function renderHistoryGrouped(list){
+    var groups = {};
+    var order = [];
+    list.forEach(function(t){
+      var key, label, emoji;
+      if(t.type==='income'){ key = '__income__'; label = 'Income'; emoji = '💰'; }
+      else { var c = CAT_MAP[t.category]; key = t.category || '__other__'; label = c ? c.label : 'Other'; emoji = c ? c.emoji : '❓'; }
+      if(!groups[key]){ groups[key] = { label:label, emoji:emoji, total:0, items:[] }; order.push(key); }
+      groups[key].total += t.amount;
+      groups[key].items.push(t);
+    });
+    order.sort(function(a,b){ return groups[b].total - groups[a].total; });
+    return order.map(function(key){
+      var g = groups[key];
+      return '<div class="budget-row" style="margin-top:6px;"><div class="top"><span class="cat">'+g.emoji+' '+escapeHtml(g.label)+'</span><span class="amt">'+fmt(g.total)+'</span></div></div>'+
+        g.items.map(txRowHtml).join('');
+    }).join('');
+  }
 
   function renderHistory(){
     populateMonthFilter();
     var mFilter = document.getElementById('filterMonth').value;
     var tFilter = document.getElementById('filterType').value;
+    var viewMode = document.getElementById('viewMode').value;
     var list = state.transactions.slice().sort(function(a,b){ return b.date.localeCompare(a.date) || 0; });
     list = list.filter(function(t){
       if(mFilter!=='all' && monthKey(t.date)!==mFilter) return false;
@@ -1714,17 +1823,7 @@
     });
     var box = document.getElementById('txList');
     if(list.length===0){ box.innerHTML = '<div class="empty">No transactions yet</div>'; return; }
-    box.innerHTML = list.map(function(t){
-      var emoji = t.type==='income' ? '💰' : (CAT_MAP[t.category] ? CAT_MAP[t.category].emoji : '❓');
-      var label = t.type==='income' ? (t.source || 'Income') : (CAT_MAP[t.category] ? CAT_MAP[t.category].label : 'Other');
-      var noteHtml = t.note ? ('<div class="tx-note">'+escapeHtml(t.note)+'</div>') : '';
-      return '<div class="tx-item" data-id="'+t.id+'">'+
-        '<div class="tx-emoji">'+emoji+'</div>'+
-        '<div class="tx-mid"><div class="tx-cat">'+escapeHtml(label)+'</div>'+noteHtml+'<div class="tx-date">'+t.date+'</div></div>'+
-        '<div class="tx-amt '+t.type+'">'+(t.type==='income'?'+':'−')+fmt(t.amount)+'</div>'+
-        '<button class="tx-del" data-id="'+t.id+'">✕</button>'+
-      '</div>';
-    }).join('');
+    box.innerHTML = viewMode==='category' ? renderHistoryGrouped(list) : list.map(txRowHtml).join('');
     box.querySelectorAll('.tx-item').forEach(function(row){
       row.addEventListener('click', function(){
         var id = row.getAttribute('data-id');
@@ -1784,7 +1883,62 @@
   }
   document.getElementById('recapMonth').addEventListener('change', renderRecap);
 
+  var recapMode = 'month';
+  function setRecapMode(mode){
+    recapMode = mode;
+    document.getElementById('recapModeMonth').classList.toggle('active', mode==='month');
+    document.getElementById('recapModeRange').classList.toggle('active', mode==='range');
+    document.getElementById('recapMonthPicker').style.display = mode==='month' ? 'block' : 'none';
+    document.getElementById('recapRangePicker').style.display = mode==='range' ? 'block' : 'none';
+    renderRecap();
+  }
+  document.getElementById('recapModeMonth').addEventListener('click', function(){ setRecapMode('month'); });
+  document.getElementById('recapModeRange').addEventListener('click', function(){ setRecapMode('range'); });
+  document.getElementById('recapFrom').value = new Date().toISOString().slice(0,8)+'01';
+  document.getElementById('recapTo').value = todayStr();
+  document.getElementById('recapFrom').addEventListener('change', renderRecap);
+  document.getElementById('recapTo').addEventListener('change', renderRecap);
+
   function renderRecap(){
+    if(recapMode==='range'){
+      var from = document.getElementById('recapFrom').value;
+      var to = document.getElementById('recapTo').value;
+      var box = document.getElementById('rInsights');
+      if(!from || !to || from>to){
+        box.innerHTML = '<div class="empty">Pick a valid "From" and "To" date</div>';
+        return;
+      }
+      var cur = computeRangeTotals(from, to);
+      var days = Math.round((new Date(to)-new Date(from))/86400000) + 1;
+      var topCat = null;
+      CATEGORIES.forEach(function(c){
+        var s = cur.catTotals[c.key]||0;
+        if(s>0 && (!topCat || s>topCat.spent)) topCat = { label:c.label, spent:s };
+      });
+      var lines = [];
+      lines.push('Covering ' + days + ' day' + (days===1?'':'s') + ' (' + from + ' to ' + to + ').');
+      if(cur.expense>cur.income && (cur.income>0 || cur.expense>0)) lines.push('You spent ' + fmt(cur.expense-cur.income) + ' more than you earned in this range.');
+      if(topCat) lines.push('Biggest category: ' + topCat.label + ' (' + fmt(topCat.spent) + ').');
+      box.innerHTML = lines.map(function(l){ return '<div class="insight-row tip"><span class="ic">💡</span><span>'+escapeHtml(l)+'</span></div>'; }).join('');
+
+      document.getElementById('rIncome').textContent = fmt(cur.income);
+      document.getElementById('rExpense').textContent = fmt(cur.expense);
+      document.getElementById('rNet').textContent = fmtSigned(cur.income-cur.expense);
+      document.getElementById('rIncomeDelta').innerHTML = '';
+      document.getElementById('rExpenseDelta').innerHTML = '';
+
+      document.getElementById('rSavings').textContent = fmtSigned(cur.savings);
+
+      var unexpected = cur.catTotals['unexpected'] || 0;
+      document.getElementById('rUnexpected').innerHTML = unexpected>0
+        ? ('<span style="color:var(--warn);font-weight:700;">'+fmt(unexpected)+'</span> spent on unplanned costs in this range.')
+        : 'No unexpected costs in this range. 🎉';
+
+      document.getElementById('rBudgetSummary').innerHTML = 'Spent ' + fmt(cur.expense) + ' across ' + days + ' day' + (days===1?'':'s') + ' · budgets are monthly, so they\'re not compared here';
+      document.getElementById('rCatList').innerHTML = buildCategoryShareRows(cur.catTotals, cur.expense);
+      return;
+    }
+
     populateRecapMonths();
     var mk = document.getElementById('recapMonth').value;
     var cur = computeMonthTotals(mk);
