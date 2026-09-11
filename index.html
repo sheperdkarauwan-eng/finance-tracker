@@ -1617,6 +1617,20 @@
     }).join('');
   }
 
+  var CATEGORY_QUICKLINKS = {
+    subscriptions: { label:'Subs', action: function(){ showView('subs'); } },
+    utilities: { label:'Subs', action: function(){ showView('subs'); } },
+    devel: { label:'History', action: function(){ jumpToCategoryInHistory('devel'); } }
+  };
+  function jumpToCategoryInHistory(key){
+    showView('history');
+    setHistoryTab('purchases');
+    document.getElementById('viewMode').value = 'category';
+    renderHistory();
+    var el = document.getElementById('catgroup-'+key);
+    if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+    else toast('No entries in that category yet');
+  }
   function buildEditableBudgetRows(catTotals){
     return CATEGORIES.map(function(c){
       var spent = catTotals[c.key] || 0;
@@ -1625,8 +1639,10 @@
       var over = budget>0 && spent>budget;
       var barClass = over ? 'over' : (pct>=80 ? 'warn' : '');
       var bar = budget>0 ? ('<div class="budget-bar-wrap"><div class="budget-bar-fill '+barClass+'" style="width:'+pct+'%"></div></div>') : '';
+      var link = CATEGORY_QUICKLINKS[c.key];
+      var linkBtn = link ? (' <button class="cat-quicklink-btn" data-key="'+c.key+'" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--accent2);font-size:10px;font-weight:700;padding:2px 7px;margin-left:6px;">'+link.label+' ↗</button>') : '';
       return '<div class="budget-row">'+
-        '<div class="top"><span class="cat">'+c.emoji+' '+c.label+'</span>'+
+        '<div class="top"><span class="cat">'+c.emoji+' '+c.label+linkBtn+'</span>'+
         '<input type="number" class="budget-edit-input" data-key="'+c.key+'" inputmode="decimal" step="1" min="0" value="'+budget+'" style="width:88px;padding:6px 8px;font-size:13px;text-align:right;">'+
         '</div>'+
         '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:2px;">'+
@@ -1637,6 +1653,12 @@
     }).join('');
   }
   function wireEditableBudgetRows(catTotals){
+    document.querySelectorAll('#budgetList .cat-quicklink-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var link = CATEGORY_QUICKLINKS[btn.getAttribute('data-key')];
+        if(link) link.action();
+      });
+    });
     CATEGORIES.forEach(function(c){
       var input = document.querySelector('#budgetList .budget-edit-input[data-key="'+c.key+'"]');
       if(!input) return;
