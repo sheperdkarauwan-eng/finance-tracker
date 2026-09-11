@@ -128,7 +128,8 @@
   }
   .cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
   .cat-btn{padding:10px 4px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;text-align:center;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s;}
-  .cat-btn .emoji{font-size:20px;display:block;margin-bottom:2px;}
+  .icon{width:1em;height:1em;display:inline-block;vertical-align:-0.15em;flex-shrink:0;}
+  .cat-btn .icon{width:20px;height:20px;display:block;margin:0 auto 4px;}
   .cat-btn.active{border-color:var(--accent2);background:var(--accent2-bg);color:var(--text);}
 
   .btn-primary{width:100%;padding:13px;border-radius:var(--radius);border:none;background:var(--accent2);color:#04121f;font-weight:600;font-size:14.5px;margin-top:18px;transition:opacity .15s;}
@@ -234,7 +235,7 @@
         <h1 id="headerTitle">Add transaction</h1>
         <div class="sub" id="headerSub">Log income or an expense</div>
       </div>
-      <button id="settingsBtn" class="settings-icon-btn" aria-label="Settings">⚙️</button>
+      <button id="settingsBtn" class="settings-icon-btn" aria-label="Settings"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     </div>
   </header>
 
@@ -251,14 +252,14 @@
       <div class="card" id="balancesCard">
         <h2>Balances</h2>
         <div class="balance-grid">
-          <div class="item"><div class="label">🏦 Bank</div><div class="value" id="balBank">-</div></div>
-          <div class="item"><div class="label">💵 Cash</div><div class="value" id="balCash">-</div></div>
+          <div class="item"><div class="label"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="4" y1="9" x2="20" y2="9"/><path d="M4 9l8-6 8 6"/><line x1="6" y1="9" x2="6" y2="18"/><line x1="10" y1="9" x2="10" y2="18"/><line x1="14" y1="9" x2="14" y2="18"/><line x1="18" y1="9" x2="18" y2="18"/></svg> Bank</div><div class="value" id="balBank">-</div></div>
+          <div class="item"><div class="label"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="18" y1="12" x2="18" y2="12.01"/></svg> Cash</div><div class="value" id="balCash">-</div></div>
         </div>
         <div class="rate-line" id="balAsOf" style="margin:8px 0 0;"></div>
       </div>
 
       <div class="card" id="suggestionCard" style="display:none;">
-        <h2>💡 Suggestion</h2>
+        <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg> Suggestion</h2>
         <div id="suggestionText" style="font-size:13px;line-height:1.5;"></div>
         <div class="actions">
           <button class="btn-primary" id="suggestionApply">Move to Savings</button>
@@ -290,7 +291,7 @@
         <h2>Subscriptions &amp; utilities</h2>
         <div class="budget-summary-line" id="subsHomeSummary"></div>
         <div id="subsHomeList"></div>
-        <button class="btn-secondary" id="subsHomeManage" style="margin-top:12px;">🔁 Manage in Subs</button>
+        <button class="btn-secondary" id="subsHomeManage" style="margin-top:12px;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Manage in Subs</button>
       </div>
 
       <div class="card" id="goalCard">
@@ -330,7 +331,7 @@
         <h2>Scan a receipt</h2>
         <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Reads the photo on your phone (no upload, nothing leaves your device) and tries to guess the amount, date and merchant. Always double-check before saving.</div>
         <input type="file" id="receiptFileInput" accept="image/*" capture="environment" style="display:none;">
-        <button class="btn-secondary" id="scanReceiptBtn" style="margin-top:0;">📷 Scan receipt</button>
+        <button class="btn-secondary" id="scanReceiptBtn" style="margin-top:0;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Scan receipt</button>
         <div id="receiptStatus" style="display:none;font-size:12px;color:var(--accent2);margin-top:10px;"></div>
         <details id="receiptRawWrap" style="display:none;margin-top:10px;">
           <summary style="font-size:11px;color:var(--muted);cursor:pointer;">Show raw scanned text</summary>
@@ -346,8 +347,8 @@
 
         <label style="margin-top:0;">Account</label>
         <div class="type-toggle" id="accountToggle">
-          <button id="acctBank" class="active">🏦 Bank</button>
-          <button id="acctCash">💵 Cash</button>
+          <button id="acctBank" class="active"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="4" y1="9" x2="20" y2="9"/><path d="M4 9l8-6 8 6"/><line x1="6" y1="9" x2="6" y2="18"/><line x1="10" y1="9" x2="10" y2="18"/><line x1="14" y1="9" x2="14" y2="18"/><line x1="18" y1="9" x2="18" y2="18"/></svg> Bank</button>
+          <button id="acctCash"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="18" y1="12" x2="18" y2="12.01"/></svg> Cash</button>
         </div>
 
         <div id="categoryPicker">
@@ -368,7 +369,7 @@
         <input type="text" id="noteInput" placeholder="e.g. portable AC, heat wave">
         <div id="categoryHint" style="display:none;font-size:11.5px;color:var(--accent2);margin-top:6px;"></div>
 
-        <div id="editBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;">✏️ Editing an existing entry</div>
+        <div id="editBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Editing an existing entry</div>
         <button class="btn-primary" id="saveTx">Save</button>
         <button class="btn-secondary" id="cancelEditTx" style="display:none;">Cancel edit</button>
       </div>
@@ -462,7 +463,7 @@
         </div>
 
         <div class="card">
-          <button class="btn-secondary" id="downloadRecapPdf" style="margin-top:0;">📄 Download PDF</button>
+          <button class="btn-secondary" id="downloadRecapPdf" style="margin-top:0;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg> Download PDF</button>
           <div id="recapPdfStatus" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;text-align:center;"></div>
         </div>
       </div>
@@ -481,15 +482,15 @@
 
         <label>Pay from / to</label>
         <div class="type-toggle" id="savPaymentToggle">
-          <button id="savAcctBank" class="active">🏦 Bank</button>
-          <button id="savAcctCash">💵 Cash</button>
+          <button id="savAcctBank" class="active"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="4" y1="9" x2="20" y2="9"/><path d="M4 9l8-6 8 6"/><line x1="6" y1="9" x2="6" y2="18"/><line x1="10" y1="9" x2="10" y2="18"/><line x1="14" y1="9" x2="14" y2="18"/><line x1="18" y1="9" x2="18" y2="18"/></svg> Bank</button>
+          <button id="savAcctCash"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="18" y1="12" x2="18" y2="12.01"/></svg> Cash</button>
         </div>
 
         <label>Amount (EUR)</label>
         <input type="number" id="savAmount" inputmode="decimal" step="0.01" placeholder="0.00">
         <label>Note (optional)</label>
         <input type="text" id="savNote" placeholder="e.g. side job payout">
-        <div id="savEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;">✏️ Editing an existing entry</div>
+        <div id="savEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Editing an existing entry</div>
         <button class="btn-primary" id="saveSav">Save</button>
         <button class="btn-secondary" id="cancelEditSav" style="display:none;">Cancel edit</button>
       </div>
@@ -533,8 +534,8 @@
 
         <label>Account</label>
         <div class="type-toggle" id="loanAccountToggle">
-          <button id="loanAcctBank" class="active">🏦 Bank</button>
-          <button id="loanAcctCash">💵 Cash</button>
+          <button id="loanAcctBank" class="active"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="4" y1="9" x2="20" y2="9"/><path d="M4 9l8-6 8 6"/><line x1="6" y1="9" x2="6" y2="18"/><line x1="10" y1="9" x2="10" y2="18"/><line x1="14" y1="9" x2="14" y2="18"/><line x1="18" y1="9" x2="18" y2="18"/></svg> Bank</button>
+          <button id="loanAcctCash"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="18" y1="12" x2="18" y2="12.01"/></svg> Cash</button>
         </div>
 
         <label>Amount (EUR)</label>
@@ -543,7 +544,7 @@
         <input type="date" id="loanDate">
         <label>Note (optional)</label>
         <input type="text" id="loanNote" placeholder="e.g. dinner split, rent help">
-        <div id="loanEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;">✏️ Editing an existing entry</div>
+        <div id="loanEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Editing an existing entry</div>
         <button class="btn-primary" id="saveLoan">Save</button>
         <button class="btn-secondary" id="cancelEditLoan" style="display:none;">Cancel edit</button>
       </div>
@@ -559,7 +560,7 @@
       </div>
 
       <div class="card">
-        <button class="btn-secondary" id="downloadLoansPdf" style="margin-top:0;">📄 Download PDF</button>
+        <button class="btn-secondary" id="downloadLoansPdf" style="margin-top:0;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg> Download PDF</button>
         <div id="loansPdfStatus" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;text-align:center;"></div>
       </div>
     </section>
@@ -586,8 +587,8 @@
 
         <label>Account</label>
         <div class="type-toggle" id="tourAccountToggle">
-          <button id="tourAcctBank" class="active">🏦 Bank</button>
-          <button id="tourAcctCash">💵 Cash</button>
+          <button id="tourAcctBank" class="active"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="4" y1="9" x2="20" y2="9"/><path d="M4 9l8-6 8 6"/><line x1="6" y1="9" x2="6" y2="18"/><line x1="10" y1="9" x2="10" y2="18"/><line x1="14" y1="9" x2="14" y2="18"/><line x1="18" y1="9" x2="18" y2="18"/></svg> Bank</button>
+          <button id="tourAcctCash"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="18" y1="12" x2="18" y2="12.01"/></svg> Cash</button>
         </div>
 
         <label>Amount (EUR)</label>
@@ -596,7 +597,7 @@
         <input type="date" id="tourDate">
         <label>Note (optional)</label>
         <input type="text" id="tourNote" placeholder="e.g. ferry tickets for the group">
-        <div id="tourEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;">✏️ Editing an existing entry</div>
+        <div id="tourEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Editing an existing entry</div>
         <button class="btn-primary" id="saveTour">Save</button>
         <button class="btn-secondary" id="cancelEditTour" style="display:none;">Cancel edit</button>
       </div>
@@ -612,7 +613,7 @@
       </div>
 
       <div class="card">
-        <button class="btn-secondary" id="downloadToursPdf" style="margin-top:0;">📄 Download PDF</button>
+        <button class="btn-secondary" id="downloadToursPdf" style="margin-top:0;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg> Download PDF</button>
         <div id="toursPdfStatus" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;text-align:center;"></div>
       </div>
     </section>
@@ -622,8 +623,8 @@
       <div class="card">
         <h2>Add a subscription or utility</h2>
         <div class="type-toggle">
-          <button id="subTypeSubscription" class="active">📱 Subscription</button>
-          <button id="subTypeUtility">💡 Utility</button>
+          <button id="subTypeSubscription" class="active"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg> Subscription</button>
+          <button id="subTypeUtility"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg> Utility</button>
         </div>
 
         <label style="margin-top:0;">Name</label>
@@ -641,12 +642,12 @@
         <input type="number" id="subBillingDay" inputmode="numeric" min="1" max="31" placeholder="e.g. 15">
         <label>Account</label>
         <div class="type-toggle" id="subAccountToggle">
-          <button id="subAcctBank" class="active">🏦 Bank</button>
-          <button id="subAcctCash">💵 Cash</button>
+          <button id="subAcctBank" class="active"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="4" y1="9" x2="20" y2="9"/><path d="M4 9l8-6 8 6"/><line x1="6" y1="9" x2="6" y2="18"/><line x1="10" y1="9" x2="10" y2="18"/><line x1="14" y1="9" x2="14" y2="18"/><line x1="18" y1="9" x2="18" y2="18"/></svg> Bank</button>
+          <button id="subAcctCash"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="18" y1="12" x2="18" y2="12.01"/></svg> Cash</button>
         </div>
         <label>Note (optional)</label>
         <input type="text" id="subNote" placeholder="e.g. family plan, shared with roommate">
-        <div id="subEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;">✏️ Editing an existing entry</div>
+        <div id="subEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Editing an existing entry</div>
         <button class="btn-primary" id="saveSub">Save</button>
         <button class="btn-secondary" id="cancelEditSub" style="display:none;">Cancel edit</button>
       </div>
@@ -655,11 +656,11 @@
         <h2>Monthly cost</h2>
         <div class="balance-grid">
           <div class="item">
-            <div class="label">📱 Subscriptions</div>
+            <div class="label"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg> Subscriptions</div>
             <div class="value" id="subsMonthlyTotal">€0.00</div>
           </div>
           <div class="item">
-            <div class="label">💡 Utilities</div>
+            <div class="label"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg> Utilities</div>
             <div class="value" id="utilsMonthlyTotal">€0.00</div>
           </div>
         </div>
@@ -677,8 +678,8 @@
       <div class="card">
         <h2>Appearance</h2>
         <div class="curr-toggle" style="margin-bottom:0;">
-          <button id="btnThemeDark" class="active">🌙 Dark</button>
-          <button id="btnThemeLight">☀️ Light</button>
+          <button id="btnThemeDark" class="active"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> Dark</button>
+          <button id="btnThemeLight"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Light</button>
         </div>
       </div>
 
@@ -750,12 +751,12 @@
 
   <nav class="bottom">
     <div class="inner">
-      <button data-view="dashboard"><span class="ic">📊</span>Home</button>
-      <button data-view="add" class="active"><span class="ic">➕</span>Add</button>
-      <button data-view="history"><span class="ic">📜</span>History</button>
-      <button data-view="savings"><span class="ic">🎯</span>Savings</button>
-      <button data-view="loans"><span class="ic">🤝</span>Loans</button>
-      <button data-view="tours"><span class="ic">🧭</span>Tours</button>
+      <button data-view="dashboard"><span class="ic"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg></span>Home</button>
+      <button data-view="add" class="active"><span class="ic"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Add</button>
+      <button data-view="history"><span class="ic"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>History</button>
+      <button data-view="savings"><span class="ic"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg></span>Savings</button>
+      <button data-view="loans"><span class="ic"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg></span>Loans</button>
+      <button data-view="tours"><span class="ic"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.2,7.8 14,14 7.8,16.2 10,10"/></svg></span>Tours</button>
     </div>
   </nav>
 
@@ -768,25 +769,65 @@
 
   var CHART_FONT = "'Plus Jakarta Sans', -apple-system, sans-serif";
 
+  var ICON_PATHS = {
+    home:'<path d="M3 10.5L12 4l9 6.5V20a1 1 0 0 1-1 1h-4v-7H8v7H4a1 1 0 0 1-1-1z"/>',
+    cart:'<circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h2l2.4 12.2a2 2 0 0 0 2 1.8h8.4a2 2 0 0 0 2-1.6L21 8H6"/>',
+    smartphone:'<rect x="6" y="2" width="12" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/>',
+    lightbulb:'<path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/>',
+    star:'<path d="M12 2l2.4 6.8L21 11l-6.6 2.2L12 20l-2.4-6.8L3 11l6.6-2.2L12 2z"/>',
+    heart:'<path d="M12 21s-7.5-4.6-9.8-9A5.5 5.5 0 0 1 12 6.4 5.5 5.5 0 0 1 21.8 12c-2.3 4.4-9.8 9-9.8 9z"/>',
+    book:'<path d="M12 6a4 4 0 0 0-4-2H3v14h5a4 4 0 0 1 4 2 4 4 0 0 1 4-2h5V4h-5a4 4 0 0 0-4 2z"/><line x1="12" y1="6" x2="12" y2="20"/>',
+    zap:'<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>',
+    bus:'<rect x="3" y="5" width="18" height="12" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/><circle cx="7.5" cy="19" r="1.5"/><circle cx="16.5" cy="19" r="1.5"/>',
+    ticket:'<path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4z"/>',
+    utensils:'<line x1="7" y1="2" x2="7" y2="22"/><path d="M4 2v6a3 3 0 0 0 3 3 3 3 0 0 0 3-3V2"/><path d="M18 2c-1.7 1.6-3 4-3 7a3 3 0 0 0 3 3v10"/>',
+    building:'<rect x="4" y="2" width="16" height="20" rx="1"/><circle cx="9" cy="7" r="0.6" fill="currentColor" stroke="none"/><circle cx="15" cy="7" r="0.6" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="0.6" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="0.6" fill="currentColor" stroke="none"/>',
+    package:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><line x1="12" y1="13" x2="12" y2="21"/>',
+    bank:'<line x1="3" y1="22" x2="21" y2="22"/><line x1="4" y1="9" x2="20" y2="9"/><path d="M4 9l8-6 8 6"/><line x1="6" y1="9" x2="6" y2="18"/><line x1="10" y1="9" x2="10" y2="18"/><line x1="14" y1="9" x2="14" y2="18"/><line x1="18" y1="9" x2="18" y2="18"/>',
+    cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="18" y1="12" x2="18" y2="12.01"/>',
+    dashboard:'<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>',
+    plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+    list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+    target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
+    link2:'<circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/>',
+    compass:'<circle cx="12" cy="12" r="10"/><polygon points="16.2,7.8 14,14 7.8,16.2 10,10"/>',
+    settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+    moon:'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+    sun:'<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>',
+    repeat:'<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+    filetext:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>',
+    pencil:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>',
+    x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+    wallet:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/><circle cx="16" cy="14" r="1.5" fill="currentColor" stroke="none"/>',
+    help:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    warning:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    check:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+    camera:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+    arrow:'<line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>'
+  };
+  function icon(name){
+    return '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ICON_PATHS[name]||'')+'</svg>';
+  }
+
   var CATEGORIES = [
-    {key:'rent', label:'Rent', emoji:'🏠'},
-    {key:'groceries', label:'Groceries', emoji:'🛒'},
-    {key:'subscriptions', label:'Subscriptions', emoji:'📱'},
-    {key:'utilities', label:'Utilities', emoji:'💡'},
-    {key:'leisure', label:'Leisure', emoji:'🎉'},
-    {key:'offering', label:'Offering', emoji:'🙏'},
-    {key:'devel', label:'Personal Dev.', emoji:'📚'},
-    {key:'unexpected', label:'Unexpected', emoji:'⚡'}
+    {key:'rent', label:'Rent', icon:'home'},
+    {key:'groceries', label:'Groceries', icon:'cart'},
+    {key:'subscriptions', label:'Subscriptions', icon:'smartphone'},
+    {key:'utilities', label:'Utilities', icon:'lightbulb'},
+    {key:'leisure', label:'Leisure', icon:'star'},
+    {key:'offering', label:'Offering', icon:'heart'},
+    {key:'devel', label:'Personal Dev.', icon:'book'},
+    {key:'unexpected', label:'Unexpected', icon:'zap'}
   ];
   var CAT_MAP = {};
   CATEGORIES.forEach(function(c){ CAT_MAP[c.key] = c; });
 
   var TOUR_CATEGORIES = [
-    {key:'transport', label:'Transport', emoji:'🚌'},
-    {key:'tickets', label:'Tickets/Entrance', emoji:'🎫'},
-    {key:'food', label:'Food', emoji:'🍽️'},
-    {key:'accommodation', label:'Accommodation', emoji:'🏨'},
-    {key:'other', label:'Other', emoji:'📦'}
+    {key:'transport', label:'Transport', icon:'bus'},
+    {key:'tickets', label:'Tickets/Entrance', icon:'ticket'},
+    {key:'food', label:'Food', icon:'utensils'},
+    {key:'accommodation', label:'Accommodation', icon:'building'},
+    {key:'other', label:'Other', icon:'package'}
   ];
   var TOUR_CAT_MAP = {};
   TOUR_CATEGORIES.forEach(function(c){ TOUR_CAT_MAP[c.key] = c; });
@@ -1148,7 +1189,7 @@
       doc.save('recap-' + mk + '.pdf');
       statusEl.style.display = 'none';
     }).catch(function(err){
-      statusEl.textContent = '⚠️ Could not build PDF: ' + (err && err.message ? err.message : 'unknown error');
+      statusEl.innerHTML = icon('warning') + ' Could not build PDF: ' + (err && err.message ? err.message : 'unknown error');
     }).finally(function(){
       btn.disabled = false;
     });
@@ -1198,7 +1239,7 @@
       doc.save('loans.pdf');
       statusEl.style.display = 'none';
     }).catch(function(err){
-      statusEl.textContent = '⚠️ Could not build PDF: ' + (err && err.message ? err.message : 'unknown error');
+      statusEl.innerHTML = icon('warning') + ' Could not build PDF: ' + (err && err.message ? err.message : 'unknown error');
     }).finally(function(){
       btn.disabled = false;
     });
@@ -1248,7 +1289,7 @@
       doc.save('tours.pdf');
       statusEl.style.display = 'none';
     }).catch(function(err){
-      statusEl.textContent = '⚠️ Could not build PDF: ' + (err && err.message ? err.message : 'unknown error');
+      statusEl.innerHTML = icon('warning') + ' Could not build PDF: ' + (err && err.message ? err.message : 'unknown error');
     }).finally(function(){
       btn.disabled = false;
     });
@@ -1362,11 +1403,11 @@
       if(parsed.amount !== null) found.push('amount');
       if(parsed.date) found.push('date');
       if(parsed.merchant) found.push('merchant');
-      statusEl.textContent = found.length > 0
-        ? ('✅ Guessed ' + found.join(', ') + ' — please double-check before saving')
-        : '⚠️ Could not confidently read this receipt — check the raw text below and fill in manually';
+      statusEl.innerHTML = found.length > 0
+        ? (icon('check') + ' Guessed ' + found.join(', ') + ' — please double-check before saving')
+        : icon('warning') + ' Could not confidently read this receipt — check the raw text below and fill in manually';
     }).catch(function(err){
-      statusEl.textContent = '⚠️ Scan failed: ' + (err && err.message ? err.message : 'unknown error');
+      statusEl.innerHTML = icon('warning') + ' Scan failed: ' + (err && err.message ? err.message : 'unknown error');
     }).finally(function(){
       btn.disabled = false;
     });
@@ -1409,7 +1450,7 @@
     CATEGORIES.forEach(function(c){
       var btn = document.createElement('div');
       btn.className='cat-btn' + (state.selectedCategory===c.key ? ' active':'');
-      btn.innerHTML = '<span class="emoji">'+c.emoji+'</span>'+c.label;
+      btn.innerHTML = icon(c.icon)+c.label;
       btn.addEventListener('click', function(){
         state.selectedCategory = c.key;
         userOverrodeCategory = true;
@@ -1461,7 +1502,7 @@
         state.selectedCategory = suggestion.category;
         renderCatGrid();
         var c = CAT_MAP[suggestion.category];
-        hint.textContent = '💡 Auto-categorized as ' + c.emoji + ' ' + c.label + ' (matched ' + suggestion.matches + ' past ' + (suggestion.matches===1 ? 'entry' : 'entries') + ') — tap a category to override';
+        hint.innerHTML = icon('lightbulb') + ' Auto-categorized as ' + icon(c.icon) + ' ' + c.label + ' (matched ' + suggestion.matches + ' past ' + (suggestion.matches===1 ? 'entry' : 'entries') + ') — tap a category to override';
         hint.style.display = 'block';
       } else {
         hint.style.display = 'none';
@@ -1620,11 +1661,11 @@
       var over = budget>0 && spent>budget;
       var barClass = over ? 'over' : (pct>=80 ? 'warn' : '');
       var rightText = budget>0
-        ? (fmt(spent) + ' / ' + fmt(budget) + (over ? ' ⚠️' : ''))
+        ? (fmt(spent) + ' / ' + fmt(budget) + (over ? ' ' + icon('warning') : ''))
         : (spent>0 ? fmt(spent) + ' · no budget set' : 'no budget set');
       var bar = budget>0 ? ('<div class="budget-bar-wrap"><div class="budget-bar-fill '+barClass+'" style="width:'+pct+'%"></div></div>') : '';
       var remainingLine = budget>0 ? ('<div style="font-size:11px;text-align:right;margin-top:2px;">'+budgetRemainingHtml(budget, spent)+'</div>') : '';
-      return '<div class="budget-row"><div class="top"><span class="cat">'+c.emoji+' '+c.label+'</span><span class="amt">'+rightText+'</span></div>'+bar+remainingLine+'</div>';
+      return '<div class="budget-row"><div class="top"><span class="cat">'+icon(c.icon)+' '+c.label+'</span><span class="amt">'+rightText+'</span></div>'+bar+remainingLine+'</div>';
     }).join('');
   }
 
@@ -1653,7 +1694,7 @@
       var link = CATEGORY_QUICKLINKS[c.key];
       var linkBtn = link ? (' <button class="cat-quicklink-btn" data-key="'+c.key+'" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--accent2);font-size:10px;font-weight:700;padding:2px 7px;margin-left:6px;">'+link.label+' ↗</button>') : '';
       return '<div class="budget-row">'+
-        '<div class="top"><span class="cat">'+c.emoji+' '+c.label+linkBtn+'</span>'+
+        '<div class="top"><span class="cat">'+icon(c.icon)+' '+c.label+linkBtn+'</span>'+
         '<input type="number" class="budget-edit-input" data-key="'+c.key+'" inputmode="decimal" step="1" min="0" value="'+budget+'" style="width:88px;padding:6px 8px;font-size:13px;text-align:right;">'+
         '</div>'+
         '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:2px;">'+
@@ -1716,7 +1757,7 @@
     rows.sort(function(a,b){ return b.spent-a.spent; });
     return rows.map(function(r){
       var pct = totalExpense>0 ? (r.spent/totalExpense*100) : 0;
-      return '<div class="budget-row"><div class="top"><span class="cat">'+r.c.emoji+' '+r.c.label+'</span><span class="amt">'+fmt(r.spent)+' · '+pct.toFixed(0)+'%</span></div>'+
+      return '<div class="budget-row"><div class="top"><span class="cat">'+icon(r.c.icon)+' '+r.c.label+'</span><span class="amt">'+fmt(r.spent)+' · '+pct.toFixed(0)+'%</span></div>'+
         '<div class="budget-bar-wrap"><div class="budget-bar-fill" style="width:'+pct+'%"></div></div></div>';
     }).join('');
   }
@@ -1774,7 +1815,7 @@
           insights.push({type:'warning', text:'Behind pace for the '+fmt(state.goal.milestoneAmt)+' milestone — need roughly '+fmt(pace)+'/month, only '+fmt(cur.savings)+' saved so far this month.'});
         }
       } else if(savingsTotal>=state.goal.milestoneAmt && savingsTotal<state.goal.target){
-        insights.push({type:'success', text:'Milestone reached! 🎉 Keep going toward the final '+fmt(state.goal.target)+'.'});
+        insights.push({type:'success', text:'Milestone reached! Keep going toward the final '+fmt(state.goal.target)+'.'});
       }
       if(cur.income===0 && now.getDate()>=20){
         insights.push({type:'tip', text:'No income logged yet this month — remember to add side-job payments as they come in.'});
@@ -1796,8 +1837,8 @@
     if(!box) return;
     var list = computeInsights(mk, isCurrentMonth);
     box.innerHTML = list.map(function(i){
-      var icon = i.type==='warning' ? '⚠️' : (i.type==='success' ? '✅' : '💡');
-      return '<div class="insight-row '+i.type+'"><span class="ic">'+icon+'</span><span>'+i.text+'</span></div>';
+      var iconName = i.type==='warning' ? 'warning' : (i.type==='success' ? 'check' : 'lightbulb');
+      return '<div class="insight-row '+i.type+'"><span class="ic">'+icon(iconName)+'</span><span>'+i.text+'</span></div>';
     }).join('');
   }
 
@@ -1812,7 +1853,7 @@
     var remaining = Math.max(0, targetAmt - savingsTotal);
 
     if(remaining<=0){
-      return { text: 'You already reached '+fmt(targetAmt)+' 🎉 — keep saving what you can toward the next goal.', amount: 0 };
+      return { text: 'You already reached '+fmt(targetAmt)+' — keep saving what you can toward the next goal.', amount: 0 };
     }
 
     var months = monthsBetween(now, targetDate);
@@ -1924,7 +1965,7 @@
     var chartBorder = cs.getPropertyValue('--border').trim();
     var labels=[], data=[], colors=['#3ddc97','#4f9dff','#ffb84f','#ff6b6b','#c084fc','#f472b6','#38bdf8','#fbbf24'];
     CATEGORIES.forEach(function(c,i){
-      if(catTotals[c.key]){ labels.push(c.emoji+' '+c.label); data.push(catTotals[c.key]); }
+      if(catTotals[c.key]){ labels.push(c.label); data.push(catTotals[c.key]); }
     });
     var ctx1 = document.getElementById('chartCategory').getContext('2d');
     if(chartCategory) chartCategory.destroy();
@@ -1994,14 +2035,14 @@
   document.getElementById('viewMode').addEventListener('change', renderHistory);
 
   function txRowHtml(t){
-    var emoji = t.type==='income' ? '💰' : (CAT_MAP[t.category] ? CAT_MAP[t.category].emoji : '❓');
+    var iconName = t.type==='income' ? 'wallet' : (CAT_MAP[t.category] ? CAT_MAP[t.category].icon : 'help');
     var label = t.type==='income' ? (t.source || 'Income') : (CAT_MAP[t.category] ? CAT_MAP[t.category].label : 'Other');
     var noteHtml = t.note ? ('<div class="tx-note">'+escapeHtml(t.note)+'</div>') : '';
     return '<div class="tx-item" data-id="'+t.id+'">'+
-      '<div class="tx-emoji">'+emoji+'</div>'+
+      '<div class="tx-emoji">'+icon(iconName)+'</div>'+
       '<div class="tx-mid"><div class="tx-cat">'+escapeHtml(label)+'</div>'+noteHtml+'<div class="tx-date">'+t.date+'</div></div>'+
       '<div class="tx-amt '+t.type+'">'+(t.type==='income'?'+':'−')+fmt(t.amount)+'</div>'+
-      '<button class="tx-del" data-id="'+t.id+'">✕</button>'+
+      '<button class="tx-del" data-id="'+t.id+'">'+icon('x')+'</button>'+
     '</div>';
   }
 
@@ -2009,10 +2050,10 @@
     var groups = {};
     var order = [];
     list.forEach(function(t){
-      var key, label, emoji;
-      if(t.type==='income'){ key = '__income__'; label = 'Income'; emoji = '💰'; }
-      else { var c = CAT_MAP[t.category]; key = t.category || '__other__'; label = c ? c.label : 'Other'; emoji = c ? c.emoji : '❓'; }
-      if(!groups[key]){ groups[key] = { label:label, emoji:emoji, total:0, items:[] }; order.push(key); }
+      var key, label, iconName;
+      if(t.type==='income'){ key = '__income__'; label = 'Income'; iconName = 'wallet'; }
+      else { var c = CAT_MAP[t.category]; key = t.category || '__other__'; label = c ? c.label : 'Other'; iconName = c ? c.icon : 'help'; }
+      if(!groups[key]){ groups[key] = { label:label, icon:iconName, total:0, items:[] }; order.push(key); }
       groups[key].total += t.amount;
       groups[key].items.push(t);
     });
@@ -2020,7 +2061,7 @@
     return order.map(function(key){
       var g = groups[key];
       return '<div class="cat-group" id="catgroup-'+key+'">'+
-        '<div class="budget-row" style="margin-top:6px;"><div class="top"><span class="cat">'+g.emoji+' '+escapeHtml(g.label)+'</span><span class="amt">'+fmt(g.total)+'</span></div></div>'+
+        '<div class="budget-row" style="margin-top:6px;"><div class="top"><span class="cat">'+icon(g.icon)+' '+escapeHtml(g.label)+'</span><span class="amt">'+fmt(g.total)+'</span></div></div>'+
         g.items.map(txRowHtml).join('') +
       '</div>';
     }).join('');
@@ -2028,8 +2069,8 @@
 
   function populateJumpCategory(){
     var sel = document.getElementById('jumpCategory');
-    var options = ['<option value="">Jump to category…</option>', '<option value="__income__">💰 Income</option>'];
-    CATEGORIES.forEach(function(c){ options.push('<option value="'+c.key+'">'+c.emoji+' '+c.label+'</option>'); });
+    var options = ['<option value="">Jump to category…</option>', '<option value="__income__">Income</option>'];
+    CATEGORIES.forEach(function(c){ options.push('<option value="'+c.key+'">'+c.label+'</option>'); });
     sel.innerHTML = options.join('');
   }
   populateJumpCategory();
@@ -2152,7 +2193,7 @@
       lines.push('Covering ' + days + ' day' + (days===1?'':'s') + ' (' + from + ' to ' + to + ').');
       if(cur.expense>cur.income && (cur.income>0 || cur.expense>0)) lines.push('You spent ' + fmt(cur.expense-cur.income) + ' more than you earned in this range.');
       if(topCat) lines.push('Biggest category: ' + topCat.label + ' (' + fmt(topCat.spent) + ').');
-      box.innerHTML = lines.map(function(l){ return '<div class="insight-row tip"><span class="ic">💡</span><span>'+escapeHtml(l)+'</span></div>'; }).join('');
+      box.innerHTML = lines.map(function(l){ return '<div class="insight-row tip"><span class="ic">'+icon('lightbulb')+'</span><span>'+escapeHtml(l)+'</span></div>'; }).join('');
 
       document.getElementById('rIncome').textContent = fmt(cur.income);
       document.getElementById('rExpense').textContent = fmt(cur.expense);
@@ -2165,7 +2206,7 @@
       var unexpected = cur.catTotals['unexpected'] || 0;
       document.getElementById('rUnexpected').innerHTML = unexpected>0
         ? ('<span style="color:var(--warn);font-weight:700;">'+fmt(unexpected)+'</span> spent on unplanned costs in this range.')
-        : 'No unexpected costs in this range. 🎉';
+        : 'No unexpected costs in this range.';
 
       document.getElementById('rBudgetSummary').innerHTML = 'Spent ' + fmt(cur.expense) + ' across ' + days + ' day' + (days===1?'':'s') + ' · budgets are monthly, so they\'re not compared here';
       document.getElementById('rCatList').innerHTML = buildCategoryShareRows(cur.catTotals, cur.expense);
@@ -2190,7 +2231,7 @@
     var unexpected = cur.catTotals['unexpected'] || 0;
     document.getElementById('rUnexpected').innerHTML = unexpected>0
       ? ('<span style="color:var(--warn);font-weight:700;">'+fmt(unexpected)+'</span> spent on unplanned costs this month.')
-      : 'No unexpected costs this month. 🎉';
+      : 'No unexpected costs this month.';
 
     var totalBudget = 0;
     CATEGORIES.forEach(function(c){ totalBudget += state.budgets[c.key] || 0; });
@@ -2216,7 +2257,7 @@
 
   // ---------- Savings (multiple accounts) ----------
   function getSavingsAccountsForUI(){
-    var list = [{ id: 'masters', name: '🎓 Masters Tuition', target: state.goal.target }];
+    var list = [{ id: 'masters', name: 'Masters Tuition', target: state.goal.target }];
     state.savingsAccounts.forEach(function(a){
       list.push({ id: a.id, name: a.name, target: a.target || 0 });
     });
@@ -2343,7 +2384,7 @@
       var total = accountTotal(a.id);
       var pct = a.target>0 ? Math.min(100, Math.max(0,(total/a.target)*100)) : 0;
       var bar = a.target>0 ? ('<div class="bar-wrap" style="height:8px;margin-top:6px;"><div class="bar-fill" style="width:'+pct+'%"></div></div>') : '';
-      var delBtn = a.id!=='masters' ? '<button class="del" data-id="'+a.id+'">✕</button>' : '';
+      var delBtn = a.id!=='masters' ? '<button class="del" data-id="'+a.id+'">'+icon('x')+'</button>' : '';
       return '<div class="acc-card">'+
         '<div class="top"><span class="name">'+escapeHtml(a.name)+'</span>'+delBtn+'</div>'+
         '<div class="amt">'+fmt(total)+(a.target>0 ? ' of '+fmt(a.target) : '')+'</div>'+
@@ -2381,7 +2422,7 @@
       return '<div class="sav-item" data-id="'+s.id+'" data-source="'+s.accountId+'">'+
         '<span>'+s.date+' · '+escapeHtml(accLabel)+(s.note? ' · '+escapeHtml(s.note):'')+'</span>'+
         '<span class="amt '+cls+'">'+fmtSigned(s.amount)+'</span>'+
-        '<button class="tx-del" data-id="'+s.id+'" data-source="'+s.accountId+'">✕</button>'+
+        '<button class="tx-del" data-id="'+s.id+'" data-source="'+s.accountId+'">'+icon('x')+'</button>'+
       '</div>';
     }).join('');
     box.querySelectorAll('.sav-item').forEach(function(row){
@@ -2609,7 +2650,7 @@
     if(loanId){
       var remainingBefore = loanRemaining(loanId);
       if(amount > remainingBefore){
-        tipHeadsUp = ' (includes ' + fmt(amount-remainingBefore) + ' tip 🎉)';
+        tipHeadsUp = ' (includes ' + fmt(amount-remainingBefore) + ' tip)';
       }
     }
 
@@ -2653,7 +2694,7 @@
         var b = personLoanBreakdown(p.id);
         var statusColor = b.owed>0 ? 'var(--warn)' : 'var(--accent)';
         var statusText = b.owed>0 ? fmt(b.owed)+' owed' : 'Settled up ✓';
-        var tipText = b.tips>0 ? (' · 🎉 '+fmt(b.tips)+' tip received') : '';
+        var tipText = b.tips>0 ? (' · '+icon('star')+' '+fmt(b.tips)+' tip received') : '';
         return '<div class="acc-card"><div class="top"><span class="name">'+escapeHtml(p.name)+'</span></div>'+
           '<div class="amt" style="color:'+statusColor+';">'+statusText+'<span style="color:var(--accent);">'+tipText+'</span></div>'+
         '</div>';
@@ -2669,7 +2710,7 @@
       var name = peopleNames[e.personId] || 'Unknown';
       var cls = e.type==='lent' ? 'neg' : 'pos';
       var sign = e.type==='lent' ? '−' : '+';
-      var acctLabel = e.account==='cash' ? '💵' : '🏦';
+      var acctLabel = e.account==='cash' ? icon('cash') : icon('bank');
       var linkNote = '';
       if(e.type==='repaid' && e.loanId){
         var linkedLoan = state.loanEntries.find(function(x){ return x.id===e.loanId; });
@@ -2678,14 +2719,14 @@
           var remainingNow = loanRemaining(e.loanId);
           var linkedRepaidTotal = state.loanEntries.filter(function(x){ return x.type==='repaid' && x.loanId===e.loanId; }).reduce(function(a,x){return a+x.amount;},0);
           if(linkedRepaidTotal > linkedLoan.amount && remainingNow===0){
-            linkNote += ' 🎉 tip';
+            linkNote += ' tip';
           }
         }
       }
       return '<div class="sav-item" data-id="'+e.id+'">'+
         '<span>'+e.date+' · '+acctLabel+' '+escapeHtml(name)+(e.note? ' · '+escapeHtml(e.note):'')+escapeHtml(linkNote)+'</span>'+
         '<span class="amt '+cls+'">'+sign+fmt(e.amount)+'</span>'+
-        '<button class="tx-del" data-id="'+e.id+'">✕</button>'+
+        '<button class="tx-del" data-id="'+e.id+'">'+icon('x')+'</button>'+
       '</div>';
     }).join('');
     histBox.querySelectorAll('.sav-item').forEach(function(row){
@@ -2737,7 +2778,7 @@
     TOUR_CATEGORIES.forEach(function(c){
       var btn = document.createElement('div');
       btn.className = 'cat-btn' + (selectedTourCategory===c.key ? ' active' : '');
-      btn.innerHTML = '<span class="emoji">'+c.emoji+'</span>'+c.label;
+      btn.innerHTML = icon(c.icon)+c.label;
       btn.addEventListener('click', function(){
         selectedTourCategory = c.key;
         renderTourCatGrid();
@@ -2765,11 +2806,11 @@
     } else {
       var bal = tourBalance(sel.value);
       if(bal > 0){
-        hint.textContent = '⚠️ ' + fmt(bal) + ' still owed to you for this tour';
+        hint.innerHTML = icon('warning') + ' ' + fmt(bal) + ' still owed to you for this tour';
       } else if(bal < 0){
-        hint.textContent = '💰 ' + fmt(Math.abs(bal)) + ' float already in hand for this tour - use it before asking for more';
+        hint.innerHTML = icon('wallet') + ' ' + fmt(Math.abs(bal)) + ' float already in hand for this tour - use it before asking for more';
       } else {
-        hint.textContent = '✅ This tour is settled up so far';
+        hint.innerHTML = icon('check') + ' This tour is settled up so far';
       }
       hint.style.display = 'block';
     }
@@ -2875,7 +2916,7 @@
       listBox.innerHTML = state.tours.map(function(t){
         var bal = tourBalance(t.id);
         var statusColor = bal>0 ? 'var(--warn)' : (bal<0 ? 'var(--accent2)' : 'var(--accent)');
-        var statusText = bal>0 ? (fmt(bal)+' still owed to you') : (bal<0 ? ('💰 '+fmt(Math.abs(bal))+' float in hand for this group\'s future expenses') : 'Fully reimbursed ✓');
+        var statusText = bal>0 ? (fmt(bal)+' still owed to you') : (bal<0 ? (icon('wallet')+' '+fmt(Math.abs(bal))+' float in hand for this group\'s future expenses') : 'Fully reimbursed');
         var clientLine = t.client ? ('<div class="amt" style="margin-top:2px;">Client: '+escapeHtml(t.client)+'</div>') : '';
         return '<div class="acc-card"><div class="top"><span class="name">'+escapeHtml(t.name)+'</span></div>'+
           '<div class="amt" style="color:'+statusColor+';">'+statusText+'</div>'+
@@ -2893,12 +2934,12 @@
       var name = tourNames[e.tourId] || 'Unknown tour';
       var cls = e.type==='expense' ? 'neg' : 'pos';
       var sign = e.type==='expense' ? '−' : '+';
-      var acctLabel = e.account==='cash' ? '💵' : '🏦';
-      var catLabel = e.type==='expense' && TOUR_CAT_MAP[e.category] ? (TOUR_CAT_MAP[e.category].emoji+' '+TOUR_CAT_MAP[e.category].label+' · ') : '';
+      var acctLabel = e.account==='cash' ? icon('cash') : icon('bank');
+      var catLabel = e.type==='expense' && TOUR_CAT_MAP[e.category] ? (icon(TOUR_CAT_MAP[e.category].icon)+' '+TOUR_CAT_MAP[e.category].label+' · ') : '';
       return '<div class="sav-item" data-id="'+e.id+'">'+
         '<span>'+e.date+' · '+acctLabel+' '+catLabel+escapeHtml(name)+(e.note? ' · '+escapeHtml(e.note):'')+'</span>'+
         '<span class="amt '+cls+'">'+sign+fmt(e.amount)+'</span>'+
-        '<button class="tx-del" data-id="'+e.id+'">✕</button>'+
+        '<button class="tx-del" data-id="'+e.id+'">'+icon('x')+'</button>'+
       '</div>';
     }).join('');
     histBox.querySelectorAll('.sav-item').forEach(function(row){
@@ -3035,18 +3076,18 @@
     }
     var list = state.recurring.slice().sort(function(a,b){ return b.amount-a.amount; });
     box.innerHTML = list.map(function(r){
-      var emoji = r.type==='subscription' ? '📱' : '💡';
+      var emoji = r.type==='subscription' ? icon('smartphone') : icon('lightbulb');
       var cycleLabel = r.cycle==='yearly' ? '/yr' : '/mo';
-      var acctLabel = r.account==='cash' ? '💵 Cash' : '🏦 Bank';
+      var acctLabel = r.account==='cash' ? icon('cash')+' Cash' : icon('bank')+' Bank';
       var dayLabel = r.billingDay ? (' · billed day '+r.billingDay) : '';
       var noteLine = r.note ? ('<br>'+escapeHtml(r.note)) : '';
       return '<div class="acc-card" data-id="'+r.id+'">'+
         '<div class="top"><span class="name">'+emoji+' '+escapeHtml(r.name)+'</span><span class="amt">'+fmt(r.amount)+cycleLabel+'</span></div>'+
         '<div class="amt">'+acctLabel+dayLabel+noteLine+'</div>'+
         '<div style="display:flex;gap:8px;margin-top:10px;">'+
-          '<button class="btn-secondary sub-log-btn" data-id="'+r.id+'" style="margin-top:0;flex:1;padding:8px;font-size:12px;">✅ Log payment</button>'+
-          '<button class="del sub-edit-btn" data-id="'+r.id+'">✏️</button>'+
-          '<button class="del sub-del-btn" data-id="'+r.id+'">✕</button>'+
+          '<button class="btn-secondary sub-log-btn" data-id="'+r.id+'" style="margin-top:0;flex:1;padding:8px;font-size:12px;">'+icon('check')+' Log payment</button>'+
+          '<button class="del sub-edit-btn" data-id="'+r.id+'">'+icon('pencil')+'</button>'+
+          '<button class="del sub-del-btn" data-id="'+r.id+'">'+icon('x')+'</button>'+
         '</div>'+
       '</div>';
     }).join('');
@@ -3081,14 +3122,14 @@
     });
     var combined = subsTotal + utilsTotal;
     document.getElementById('subsHomeSummary').innerHTML = state.recurring.length>0
-      ? ('📱 '+fmt(subsTotal)+' subscriptions · 💡 '+fmt(utilsTotal)+' utilities · <strong>'+fmt(combined)+'/mo combined</strong>')
+      ? (icon('smartphone')+' '+fmt(subsTotal)+' subscriptions · '+icon('lightbulb')+' '+fmt(utilsTotal)+' utilities · <strong>'+fmt(combined)+'/mo combined</strong>')
       : 'Nothing tracked yet — add your subscriptions and utilities below.';
 
     var box = document.getElementById('subsHomeList');
     if(state.recurring.length===0){ box.innerHTML = ''; return; }
     var list = state.recurring.slice().sort(function(a,b){ return b.amount-a.amount; }).slice(0,5);
     box.innerHTML = list.map(function(r){
-      var emoji = r.type==='subscription' ? '📱' : '💡';
+      var emoji = r.type==='subscription' ? icon('smartphone') : icon('lightbulb');
       var cycleLabel = r.cycle==='yearly' ? '/yr' : '/mo';
       return '<div class="budget-row" style="margin-top:0;"><div class="top"><span class="cat">'+emoji+' '+escapeHtml(r.name)+'</span><span class="amt">'+fmt(r.amount)+cycleLabel+'</span></div></div>';
     }).join('');
@@ -3140,7 +3181,7 @@
     var curMonth = new Date().toISOString().slice(0,7);
     var catTotals = computeMonthTotals(curMonth).catTotals;
     box.innerHTML = CATEGORIES.map(function(c){
-      return '<div class="brow"><span class="bl">'+c.emoji+' '+c.label+'</span><input type="number" inputmode="decimal" step="1" min="0" id="budget_'+c.key+'" value="'+(state.budgets[c.key]||0)+'"></div>'+
+      return '<div class="brow"><span class="bl">'+icon(c.icon)+' '+c.label+'</span><input type="number" inputmode="decimal" step="1" min="0" id="budget_'+c.key+'" value="'+(state.budgets[c.key]||0)+'"></div>'+
         '<div class="budget-remaining-line" id="budgetRemaining_'+c.key+'" style="font-size:11px;margin:-6px 0 12px;text-align:right;"></div>';
     }).join('');
     CATEGORIES.forEach(function(c){
