@@ -269,9 +269,16 @@
       </div>
 
       <div class="card">
-        <h2>Budget vs actual (this month)</h2>
+        <h2>Budgeting</h2>
         <div class="budget-summary-line" id="budgetSummaryLine"></div>
         <div id="budgetList"></div>
+      </div>
+
+      <div class="card" id="subsHomeCard">
+        <h2>Subscriptions &amp; utilities</h2>
+        <div class="budget-summary-line" id="subsHomeSummary"></div>
+        <div id="subsHomeList"></div>
+        <button class="btn-secondary" id="subsHomeManage" style="margin-top:12px;">🔁 Manage in Subs</button>
       </div>
 
       <div class="card" id="goalCard">
@@ -697,7 +704,8 @@
         <button class="btn-primary" id="saveGoal">Save goal settings</button>
       </div>
       <div class="card">
-        <h2>Category budgets (per month, EUR)</h2>
+        <h2>Budgeting</h2>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Set a monthly limit per category. What's left updates live as you type, based on what you've already spent this month.</div>
         <div class="budget-inputs" id="budgetInputs"></div>
         <button class="btn-primary" id="saveBudgets">Save budgets</button>
       </div>
@@ -1599,8 +1607,49 @@
         ? (fmt(spent) + ' / ' + fmt(budget) + (over ? ' ⚠️' : ''))
         : (spent>0 ? fmt(spent) + ' · no budget set' : 'no budget set');
       var bar = budget>0 ? ('<div class="budget-bar-wrap"><div class="budget-bar-fill '+barClass+'" style="width:'+pct+'%"></div></div>') : '';
-      return '<div class="budget-row"><div class="top"><span class="cat">'+c.emoji+' '+c.label+'</span><span class="amt">'+rightText+'</span></div>'+bar+'</div>';
+      var remainingLine = budget>0 ? ('<div style="font-size:11px;text-align:right;margin-top:2px;">'+budgetRemainingHtml(budget, spent)+'</div>') : '';
+      return '<div class="budget-row"><div class="top"><span class="cat">'+c.emoji+' '+c.label+'</span><span class="amt">'+rightText+'</span></div>'+bar+remainingLine+'</div>';
     }).join('');
+  }
+
+  function buildEditableBudgetRows(catTotals){
+    return CATEGORIES.map(function(c){
+      var spent = catTotals[c.key] || 0;
+      var budget = state.budgets[c.key] || 0;
+      var pct = budget>0 ? Math.min(100, (spent/budget)*100) : 0;
+      var over = budget>0 && spent>budget;
+      var barClass = over ? 'over' : (pct>=80 ? 'warn' : '');
+      var bar = budget>0 ? ('<div class="budget-bar-wrap"><div class="budget-bar-fill '+barClass+'" style="width:'+pct+'%"></div></div>') : '';
+      return '<div class="budget-row">'+
+        '<div class="top"><span class="cat">'+c.emoji+' '+c.label+'</span>'+
+        '<input type="number" class="budget-edit-input" data-key="'+c.key+'" inputmode="decimal" step="1" min="0" value="'+budget+'" style="width:88px;padding:6px 8px;font-size:13px;text-align:right;">'+
+        '</div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:2px;">'+
+          '<span>Spent '+fmt(spent)+'</span><span id="budgetHomeRemaining_'+c.key+'">'+budgetRemainingHtml(budget, spent)+'</span>'+
+        '</div>'+
+        bar+
+      '</div>';
+    }).join('');
+  }
+  function wireEditableBudgetRows(catTotals){
+    CATEGORIES.forEach(function(c){
+      var input = document.querySelector('#budgetList .budget-edit-input[data-key="'+c.key+'"]');
+      if(!input) return;
+      input.addEventListener('input', function(){
+        var v = parseFloat(input.value);
+        var budget = isNaN(v) ? 0 : Math.max(0, v);
+        var spent = catTotals[c.key] || 0;
+        var line = document.getElementById('budgetHomeRemaining_'+c.key);
+        if(line) line.innerHTML = budgetRemainingHtml(budget, spent);
+      });
+      input.addEventListener('change', function(){
+        var v = parseFloat(input.value);
+        state.budgets[c.key] = isNaN(v) ? 0 : Math.max(0, v);
+        save(LS_BUDGETS, state.budgets);
+        renderDashboard();
+        toast(c.label+' budget updated');
+      });
+    });
   }
 
   function computeRangeTotals(from, to){
@@ -1777,14 +1826,21 @@
     }
     renderInsightsInto('insightsList', curMonth, true);
 
-    var totalBudget = 0;
-    CATEGORIES.forEach(function(c){ totalBudget += state.budgets[c.key] || 0; });
+    var totalBudget = 0, totalBudgetedSpent = 0;
+    CATEGORIES.forEach(function(c){
+      var b = state.budgets[c.key] || 0;
+      totalBudget += b;
+      if(b>0) totalBudgetedSpent += catTotals[c.key] || 0;
+    });
     var overCount = 0;
     CATEGORIES.forEach(function(c){ var b=state.budgets[c.key]||0; var s=catTotals[c.key]||0; if(b>0 && s>b) overCount++; });
     document.getElementById('budgetSummaryLine').innerHTML = totalBudget>0
-      ? ('Budgeted ' + fmt(totalBudget) + ' · Spent ' + fmt(mExpense) + (overCount>0 ? ' · <span style="color:var(--danger);">'+overCount+' categor'+(overCount===1?'y':'ies')+' over budget</span>' : ''))
-      : 'No budgets set yet — add them in Settings.';
-    document.getElementById('budgetList').innerHTML = buildBudgetRows(catTotals);
+      ? ('Budgeted ' + fmt(totalBudget) + ' · Spent ' + fmt(totalBudgetedSpent) + ' · ' + budgetRemainingHtml(totalBudget, totalBudgetedSpent) + (overCount>0 ? ' · <span style="color:var(--danger);">'+overCount+' categor'+(overCount===1?'y':'ies')+' over budget</span>' : ''))
+      : 'No budgets set yet — set them below.';
+    document.getElementById('budgetList').innerHTML = buildEditableBudgetRows(catTotals);
+    wireEditableBudgetRows(catTotals);
+
+    renderSubsHomeCard();
 
     // Goal
     var savingsTotal = state.savings.reduce(function(a,s){return a+s.amount;},0);
@@ -2977,12 +3033,58 @@
     });
   }
 
+  function renderSubsHomeCard(){
+    var subsTotal = 0, utilsTotal = 0;
+    state.recurring.forEach(function(r){
+      var monthly = r.cycle==='yearly' ? r.amount/12 : r.amount;
+      if(r.type==='subscription') subsTotal += monthly; else utilsTotal += monthly;
+    });
+    var combined = subsTotal + utilsTotal;
+    document.getElementById('subsHomeSummary').innerHTML = state.recurring.length>0
+      ? ('📱 '+fmt(subsTotal)+' subscriptions · 💡 '+fmt(utilsTotal)+' utilities · <strong>'+fmt(combined)+'/mo combined</strong>')
+      : 'Nothing tracked yet — add your subscriptions and utilities below.';
+
+    var box = document.getElementById('subsHomeList');
+    if(state.recurring.length===0){ box.innerHTML = ''; return; }
+    var list = state.recurring.slice().sort(function(a,b){ return b.amount-a.amount; }).slice(0,5);
+    box.innerHTML = list.map(function(r){
+      var emoji = r.type==='subscription' ? '📱' : '💡';
+      var cycleLabel = r.cycle==='yearly' ? '/yr' : '/mo';
+      return '<div class="budget-row" style="margin-top:0;"><div class="top"><span class="cat">'+emoji+' '+escapeHtml(r.name)+'</span><span class="amt">'+fmt(r.amount)+cycleLabel+'</span></div></div>';
+    }).join('');
+  }
+  document.getElementById('subsHomeManage').addEventListener('click', function(){ showView('subs'); });
+
   // ---------- Settings ----------
+  function budgetRemainingHtml(budget, spent){
+    if(budget<=0) return '<span style="color:var(--muted);">No budget set</span>';
+    var remaining = budget - spent;
+    return remaining>=0
+      ? ('<span style="color:var(--accent);">'+fmt(remaining)+' left this month</span>')
+      : ('<span style="color:var(--danger);">'+fmt(Math.abs(remaining))+' over budget</span>');
+  }
+  function updateBudgetRemainingLine(key, catTotals){
+    var input = document.getElementById('budget_'+key);
+    var line = document.getElementById('budgetRemaining_'+key);
+    if(!input || !line) return;
+    var budget = parseFloat(input.value) || 0;
+    var spent = catTotals[key] || 0;
+    line.innerHTML = budgetRemainingHtml(budget, spent);
+  }
   function renderBudgetInputs(){
     var box = document.getElementById('budgetInputs');
+    var curMonth = new Date().toISOString().slice(0,7);
+    var catTotals = computeMonthTotals(curMonth).catTotals;
     box.innerHTML = CATEGORIES.map(function(c){
-      return '<div class="brow"><span class="bl">'+c.emoji+' '+c.label+'</span><input type="number" inputmode="decimal" step="1" min="0" id="budget_'+c.key+'" value="'+(state.budgets[c.key]||0)+'"></div>';
+      return '<div class="brow"><span class="bl">'+c.emoji+' '+c.label+'</span><input type="number" inputmode="decimal" step="1" min="0" id="budget_'+c.key+'" value="'+(state.budgets[c.key]||0)+'"></div>'+
+        '<div class="budget-remaining-line" id="budgetRemaining_'+c.key+'" style="font-size:11px;margin:-6px 0 12px;text-align:right;"></div>';
     }).join('');
+    CATEGORIES.forEach(function(c){
+      updateBudgetRemainingLine(c.key, catTotals);
+      document.getElementById('budget_'+c.key).addEventListener('input', function(){
+        updateBudgetRemainingLine(c.key, catTotals);
+      });
+    });
   }
   document.getElementById('saveBudgets').addEventListener('click', function(){
     var next = {};
@@ -2993,6 +3095,7 @@
     state.budgets = next;
     save(LS_BUDGETS, state.budgets);
     toast('Budgets saved');
+    renderDashboard();
   });
 
   function renderSettings(){
