@@ -727,6 +727,17 @@
       </div>
 
       <div class="card">
+        <h2>Expected additional expenses</h2>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">One-off costs you're expecting this month that aren't part of your regular category budgets — they're subtracted from your salary too, so "left to allocate" stays accurate.</div>
+        <label style="margin-top:0;">Description</label>
+        <input type="text" id="expExpNote" placeholder="e.g. passport renewal">
+        <label>Amount (EUR)</label>
+        <input type="number" id="expExpAmount" inputmode="decimal" step="0.01" placeholder="0.00">
+        <button class="btn-secondary" id="addExpExp" style="margin-top:10px;">+ Add expected expense</button>
+        <div id="expExpList" style="margin-top:14px;"></div>
+      </div>
+
+      <div class="card">
         <h2>Exchange rate</h2>
         <div class="settings-row"><span id="setRateLine">-</span><button class="btn-secondary" style="margin:0;width:auto;padding:8px 14px;" id="refreshRate">Refresh</button></div>
       </div>
@@ -839,6 +850,7 @@
   var LS_RATE = 'pft_rate_v1';
   var LS_GOAL = 'pft_goal_v1';
   var LS_SALARY = 'pft_salary_v1';
+  var LS_EXPECTED = 'pft_expected_expenses_v1';
   var LS_CURR = 'pft_currency_v1';
   var LS_BUDGETS = 'pft_budgets_v1';
   var LS_ACCOUNTS = 'pft_accounts_v1';
@@ -870,6 +882,7 @@
     rate: load(LS_RATE, {rate: 17300, updatedAt: null}),
     goal: load(LS_GOAL, {target:20000, milestoneAmt:10000, milestoneDate:'2027-05-01', finalDate:'2027-09-01'}),
     salary: load(LS_SALARY, 606),
+    expectedExpenses: load(LS_EXPECTED, []),
     budgets: load(LS_BUDGETS, DEFAULT_BUDGETS),
     accounts: load(LS_ACCOUNTS, {bank: 0, cash: 0, asOfDate: null, asOfTs: null}),
     transfers: load(LS_TRANSFERS, []),
@@ -3149,12 +3162,54 @@
     CATEGORIES.forEach(function(c){ total += state.budgets[c.key] || 0; });
     return total;
   }
-  function salaryBudgetSummaryHtml(salary, totalBudget){
-    var unallocated = salary - totalBudget;
-    return unallocated>=0
-      ? ('<span style="color:var(--accent);">'+fmt(unallocated)+' left to allocate</span> from your '+fmt(salary)+' salary (budgeted '+fmt(totalBudget)+')')
-      : ('<span style="color:var(--danger);">'+fmt(Math.abs(unallocated))+' over your '+fmt(salary)+' salary</span> (budgeted '+fmt(totalBudget)+')');
+  function currentExpectedExpensesTotal(){
+    return state.expectedExpenses.reduce(function(a,e){ return a+e.amount; }, 0);
   }
+  function salaryBudgetSummaryHtml(salary, totalBudget){
+    var expected = currentExpectedExpensesTotal();
+    var unallocated = salary - totalBudget - expected;
+    var expectedNote = expected>0 ? (', expected '+fmt(expected)) : '';
+    return unallocated>=0
+      ? ('<span style="color:var(--accent);">'+fmt(unallocated)+' left to allocate</span> from your '+fmt(salary)+' salary (budgeted '+fmt(totalBudget)+expectedNote+')')
+      : ('<span style="color:var(--danger);">'+fmt(Math.abs(unallocated))+' over your '+fmt(salary)+' salary</span> (budgeted '+fmt(totalBudget)+expectedNote+')');
+  }
+  function renderExpectedExpenses(){
+    var box = document.getElementById('expExpList');
+    if(!box) return;
+    if(state.expectedExpenses.length===0){ box.innerHTML = '<div class="empty">No expected expenses added</div>'; return; }
+    var rows = state.expectedExpenses.map(function(e){
+      return '<div class="tx-item" data-id="'+e.id+'">'+
+        '<div class="tx-mid"><div class="tx-cat">'+escapeHtml(e.note)+'</div></div>'+
+        '<div class="tx-amt expense">'+fmt(e.amount)+'</div>'+
+        '<button class="tx-del" data-id="'+e.id+'">'+icon('x')+'</button>'+
+      '</div>';
+    }).join('');
+    var total = currentExpectedExpensesTotal();
+    box.innerHTML = rows + '<div style="text-align:right;font-size:12px;color:var(--muted);margin-top:10px;">Total: '+fmt(total)+'</div>';
+    box.querySelectorAll('.tx-del').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.expectedExpenses = state.expectedExpenses.filter(function(e){ return e.id!==btn.getAttribute('data-id'); });
+        save(LS_EXPECTED, state.expectedExpenses);
+        renderExpectedExpenses();
+        updateBudgetSalaryLine();
+        renderDashboard();
+        toast('Removed');
+      });
+    });
+  }
+  document.getElementById('addExpExp').addEventListener('click', function(){
+    var note = document.getElementById('expExpNote').value.trim();
+    var amount = parseFloat(document.getElementById('expExpAmount').value);
+    if(!note || isNaN(amount) || amount<=0){ toast('Enter a description and amount'); return; }
+    state.expectedExpenses.push({ id: uid(), note: note, amount: amount, createdAt: Date.now() });
+    save(LS_EXPECTED, state.expectedExpenses);
+    document.getElementById('expExpNote').value = '';
+    document.getElementById('expExpAmount').value = '';
+    renderExpectedExpenses();
+    updateBudgetSalaryLine();
+    renderDashboard();
+    toast('Added');
+  });
   function updateBudgetRemainingLine(key, catTotals){
     var input = document.getElementById('budget_'+key);
     var line = document.getElementById('budgetRemaining_'+key);
@@ -3192,6 +3247,7 @@
       });
     });
     updateBudgetSalaryLine();
+    renderExpectedExpenses();
   }
   document.getElementById('setSalary').addEventListener('input', updateBudgetSalaryLine);
   document.getElementById('saveBudgets').addEventListener('click', function(){
