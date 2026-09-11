@@ -598,6 +598,61 @@
       </div>
     </section>
 
+    <!-- SUBSCRIPTIONS & UTILITIES -->
+    <section class="view" id="view-subs">
+      <div class="card">
+        <h2>Add a subscription or utility</h2>
+        <div class="type-toggle">
+          <button id="subTypeSubscription" class="active">📱 Subscription</button>
+          <button id="subTypeUtility">💡 Utility</button>
+        </div>
+
+        <label style="margin-top:0;">Name</label>
+        <input type="text" id="subName" placeholder="e.g. Spotify, Vodafone">
+
+        <label>Billing cycle</label>
+        <div class="type-toggle" id="subCycleToggle">
+          <button id="subCycleMonthly" class="active">Monthly</button>
+          <button id="subCycleYearly">Yearly</button>
+        </div>
+
+        <label>Amount (EUR)</label>
+        <input type="number" id="subAmount" inputmode="decimal" step="0.01" placeholder="0.00">
+        <label>Billing day (optional, 1-31)</label>
+        <input type="number" id="subBillingDay" inputmode="numeric" min="1" max="31" placeholder="e.g. 15">
+        <label>Account</label>
+        <div class="type-toggle" id="subAccountToggle">
+          <button id="subAcctBank" class="active">🏦 Bank</button>
+          <button id="subAcctCash">💵 Cash</button>
+        </div>
+        <label>Note (optional)</label>
+        <input type="text" id="subNote" placeholder="e.g. family plan, shared with roommate">
+        <div id="subEditBanner" style="display:none;font-size:12px;color:var(--accent2);margin-top:12px;">✏️ Editing an existing entry</div>
+        <button class="btn-primary" id="saveSub">Save</button>
+        <button class="btn-secondary" id="cancelEditSub" style="display:none;">Cancel edit</button>
+      </div>
+
+      <div class="card">
+        <h2>Monthly cost</h2>
+        <div class="balance-grid">
+          <div class="item">
+            <div class="label">📱 Subscriptions</div>
+            <div class="value" id="subsMonthlyTotal">€0.00</div>
+          </div>
+          <div class="item">
+            <div class="label">💡 Utilities</div>
+            <div class="value" id="utilsMonthlyTotal">€0.00</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center;" id="subsGrandTotal"></div>
+      </div>
+
+      <div class="card">
+        <h2>Your subscriptions &amp; utilities</h2>
+        <div id="subsList"></div>
+      </div>
+    </section>
+
     <!-- SETTINGS -->
     <section class="view" id="view-settings">
       <div class="card">
@@ -678,6 +733,7 @@
       <button data-view="savings"><span class="ic">🎯</span>Savings</button>
       <button data-view="loans"><span class="ic">🤝</span>Loans</button>
       <button data-view="tours"><span class="ic">🧭</span>Tours</button>
+      <button data-view="subs"><span class="ic">🔁</span>Subs</button>
     </div>
   </nav>
 
@@ -729,6 +785,7 @@
   var LS_LOAN_ENTRIES = 'pft_loan_entries_v1';
   var LS_TOURS = 'pft_tours_v1';
   var LS_TOUR_ENTRIES = 'pft_tour_entries_v1';
+  var LS_RECURRING = 'pft_recurring_v1';
 
   var DEFAULT_BUDGETS = {};
   CATEGORIES.forEach(function(c){ DEFAULT_BUDGETS[c.key] = 0; });
@@ -757,6 +814,7 @@
     loanEntries: load(LS_LOAN_ENTRIES, []),
     tours: load(LS_TOURS, []),
     tourEntries: load(LS_TOUR_ENTRIES, []),
+    recurring: load(LS_RECURRING, []),
     currency: load(LS_CURR, 'EUR'),
     txType: 'expense',
     txAccount: 'bank',
@@ -830,8 +888,8 @@
   }
 
   // ---------- Navigation ----------
-  var views = ['dashboard','add','history','savings','loans','tours','settings'];
-  var titles = {dashboard:['Dashboard','Your money, at a glance'], add:['Add transaction','Log income or an expense'], history:['History','All your transactions'], savings:['Savings goal','€20,000 for your masters'], loans:['Loans','Money out, and money back'], tours:['Tours','Advances you paid, and got back'], settings:['Settings','Rates, goal & backup']};
+  var views = ['dashboard','add','history','savings','loans','tours','subs','settings'];
+  var titles = {dashboard:['Dashboard','Your money, at a glance'], add:['Add transaction','Log income or an expense'], history:['History','All your transactions'], savings:['Savings goal','€20,000 for your masters'], loans:['Loans','Money out, and money back'], tours:['Tours','Advances you paid, and got back'], subs:['Subscriptions & Utilities','Recurring costs, tracked'], settings:['Settings','Rates, goal & backup']};
 
   function showView(name){
     views.forEach(function(v){
@@ -847,6 +905,7 @@
     if(name==='savings') renderSavings();
     if(name==='loans') renderLoans();
     if(name==='tours') renderTours();
+    if(name==='subs') renderSubs();
     if(name==='settings') renderSettings();
   }
   document.querySelectorAll('nav.bottom button').forEach(function(b){
@@ -2761,6 +2820,159 @@
         save(LS_TOUR_ENTRIES, state.tourEntries);
         toast('Deleted');
         renderTours();
+      });
+    });
+  }
+
+  // ---------- Subscriptions & Utilities ----------
+  var subType = 'subscription';
+  function setSubType(type){
+    subType = type;
+    document.getElementById('subTypeSubscription').classList.toggle('active', type==='subscription');
+    document.getElementById('subTypeUtility').classList.toggle('active', type==='utility');
+  }
+  document.getElementById('subTypeSubscription').addEventListener('click', function(){ setSubType('subscription'); });
+  document.getElementById('subTypeUtility').addEventListener('click', function(){ setSubType('utility'); });
+
+  var subCycle = 'monthly';
+  function setSubCycle(cycle){
+    subCycle = cycle;
+    document.getElementById('subCycleMonthly').classList.toggle('active', cycle==='monthly');
+    document.getElementById('subCycleYearly').classList.toggle('active', cycle==='yearly');
+  }
+  document.getElementById('subCycleMonthly').addEventListener('click', function(){ setSubCycle('monthly'); });
+  document.getElementById('subCycleYearly').addEventListener('click', function(){ setSubCycle('yearly'); });
+
+  var subAccount = 'bank';
+  function setSubAccount(acct){
+    subAccount = acct;
+    document.getElementById('subAcctBank').classList.toggle('active', acct==='bank');
+    document.getElementById('subAcctCash').classList.toggle('active', acct==='cash');
+  }
+  document.getElementById('subAcctBank').addEventListener('click', function(){ setSubAccount('bank'); });
+  document.getElementById('subAcctCash').addEventListener('click', function(){ setSubAccount('cash'); });
+
+  var editingSubId = null;
+  function startEditSub(item){
+    editingSubId = item.id;
+    setSubType(item.type);
+    setSubCycle(item.cycle);
+    setSubAccount(item.account);
+    document.getElementById('subName').value = item.name;
+    document.getElementById('subAmount').value = item.amount;
+    document.getElementById('subBillingDay').value = item.billingDay || '';
+    document.getElementById('subNote').value = item.note || '';
+    document.getElementById('subEditBanner').style.display = 'block';
+    document.getElementById('cancelEditSub').style.display = 'block';
+    showView('subs');
+    window.scrollTo(0,0);
+  }
+  function exitEditSub(){
+    editingSubId = null;
+    document.getElementById('subEditBanner').style.display = 'none';
+    document.getElementById('cancelEditSub').style.display = 'none';
+    document.getElementById('subName').value = '';
+    document.getElementById('subAmount').value = '';
+    document.getElementById('subBillingDay').value = '';
+    document.getElementById('subNote').value = '';
+  }
+  document.getElementById('cancelEditSub').addEventListener('click', exitEditSub);
+
+  document.getElementById('saveSub').addEventListener('click', function(){
+    var name = document.getElementById('subName').value.trim();
+    var amount = parseFloat(document.getElementById('subAmount').value);
+    if(!name){ toast('Enter a name'); return; }
+    if(isNaN(amount) || amount<=0){ toast('Enter a valid amount'); return; }
+    var billingDayRaw = document.getElementById('subBillingDay').value;
+    var billingDay = billingDayRaw ? Math.min(31, Math.max(1, parseInt(billingDayRaw,10))) : null;
+    var note = document.getElementById('subNote').value.trim();
+
+    if(editingSubId){
+      var existing = state.recurring.find(function(r){ return r.id===editingSubId; });
+      if(existing){
+        existing.type = subType; existing.name = name; existing.cycle = subCycle;
+        existing.amount = amount; existing.billingDay = billingDay; existing.account = subAccount; existing.note = note;
+        save(LS_RECURRING, state.recurring);
+        toast('Updated');
+      }
+      exitEditSub();
+      renderSubs();
+      return;
+    }
+
+    state.recurring.push({ id: uid(), type: subType, name: name, cycle: subCycle, amount: amount, billingDay: billingDay, account: subAccount, note: note, createdAt: Date.now() });
+    save(LS_RECURRING, state.recurring);
+    exitEditSub();
+    toast('Added');
+    renderSubs();
+  });
+
+  function logSubPayment(item){
+    var tx = {
+      id: uid(), type: 'expense',
+      category: item.type==='subscription' ? 'subscriptions' : 'utilities',
+      amount: item.amount, date: todayStr(),
+      note: item.name + (item.note ? ' · '+item.note : ''),
+      account: item.account, createdAt: Date.now()
+    };
+    state.transactions.push(tx);
+    save(LS_TX, state.transactions);
+    toast('Logged '+fmt(item.amount)+' for '+item.name);
+  }
+
+  function renderSubs(){
+    var subsTotal = 0, utilsTotal = 0;
+    state.recurring.forEach(function(r){
+      var monthly = r.cycle==='yearly' ? r.amount/12 : r.amount;
+      if(r.type==='subscription') subsTotal += monthly; else utilsTotal += monthly;
+    });
+    document.getElementById('subsMonthlyTotal').textContent = fmt(subsTotal);
+    document.getElementById('utilsMonthlyTotal').textContent = fmt(utilsTotal);
+    document.getElementById('subsGrandTotal').textContent = state.recurring.length>0
+      ? ('≈ '+fmt(subsTotal+utilsTotal)+'/month combined')
+      : '';
+
+    var box = document.getElementById('subsList');
+    if(state.recurring.length===0){
+      box.innerHTML = '<div class="empty">No subscriptions or utilities added yet</div>';
+      return;
+    }
+    var list = state.recurring.slice().sort(function(a,b){ return b.amount-a.amount; });
+    box.innerHTML = list.map(function(r){
+      var emoji = r.type==='subscription' ? '📱' : '💡';
+      var cycleLabel = r.cycle==='yearly' ? '/yr' : '/mo';
+      var acctLabel = r.account==='cash' ? '💵 Cash' : '🏦 Bank';
+      var dayLabel = r.billingDay ? (' · billed day '+r.billingDay) : '';
+      var noteLine = r.note ? ('<br>'+escapeHtml(r.note)) : '';
+      return '<div class="acc-card" data-id="'+r.id+'">'+
+        '<div class="top"><span class="name">'+emoji+' '+escapeHtml(r.name)+'</span><span class="amt">'+fmt(r.amount)+cycleLabel+'</span></div>'+
+        '<div class="amt">'+acctLabel+dayLabel+noteLine+'</div>'+
+        '<div style="display:flex;gap:8px;margin-top:10px;">'+
+          '<button class="btn-secondary sub-log-btn" data-id="'+r.id+'" style="margin-top:0;flex:1;padding:8px;font-size:12px;">✅ Log payment</button>'+
+          '<button class="del sub-edit-btn" data-id="'+r.id+'">✏️</button>'+
+          '<button class="del sub-del-btn" data-id="'+r.id+'">✕</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+    box.querySelectorAll('.sub-log-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var item = state.recurring.find(function(r){ return r.id===btn.getAttribute('data-id'); });
+        if(item) logSubPayment(item);
+      });
+    });
+    box.querySelectorAll('.sub-edit-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var item = state.recurring.find(function(r){ return r.id===btn.getAttribute('data-id'); });
+        if(item) startEditSub(item);
+      });
+    });
+    box.querySelectorAll('.sub-del-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.recurring = state.recurring.filter(function(r){ return r.id!==btn.getAttribute('data-id'); });
+        save(LS_RECURRING, state.recurring);
+        toast('Removed');
+        renderSubs();
       });
     });
   }
