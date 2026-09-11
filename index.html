@@ -705,7 +705,10 @@
       </div>
       <div class="card">
         <h2>Budgeting</h2>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Set a monthly limit per category. What's left updates live as you type, based on what you've already spent this month.</div>
+        <label style="margin-top:0;">Monthly salary (EUR)</label>
+        <input type="number" id="setSalary" inputmode="decimal" step="1" min="0">
+        <div class="budget-summary-line" id="budgetSalaryLine" style="margin-top:10px;"></div>
+        <div style="font-size:11px;color:var(--muted);margin:12px 0 10px;">Set a monthly limit per category. What's left updates live as you type, based on what you've already spent this month.</div>
         <div class="budget-inputs" id="budgetInputs"></div>
         <button class="btn-primary" id="saveBudgets">Save budgets</button>
       </div>
@@ -783,6 +786,7 @@
   var LS_SAV = 'pft_savings_v1';
   var LS_RATE = 'pft_rate_v1';
   var LS_GOAL = 'pft_goal_v1';
+  var LS_SALARY = 'pft_salary_v1';
   var LS_CURR = 'pft_currency_v1';
   var LS_BUDGETS = 'pft_budgets_v1';
   var LS_ACCOUNTS = 'pft_accounts_v1';
@@ -813,6 +817,7 @@
     savings: load(LS_SAV, []),
     rate: load(LS_RATE, {rate: 17300, updatedAt: null}),
     goal: load(LS_GOAL, {target:20000, milestoneAmt:10000, milestoneDate:'2027-05-01', finalDate:'2027-09-01'}),
+    salary: load(LS_SALARY, 606),
     budgets: load(LS_BUDGETS, DEFAULT_BUDGETS),
     accounts: load(LS_ACCOUNTS, {bank: 0, cash: 0, asOfDate: null, asOfTs: null}),
     transfers: load(LS_TRANSFERS, []),
@@ -1641,6 +1646,14 @@
         var spent = catTotals[c.key] || 0;
         var line = document.getElementById('budgetHomeRemaining_'+c.key);
         if(line) line.innerHTML = budgetRemainingHtml(budget, spent);
+        var totalBudget = 0;
+        CATEGORIES.forEach(function(c2){
+          var el = document.querySelector('#budgetList .budget-edit-input[data-key="'+c2.key+'"]');
+          var vv = el ? parseFloat(el.value) : (state.budgets[c2.key]||0);
+          totalBudget += isNaN(vv) ? 0 : Math.max(0, vv);
+        });
+        var summaryLine = document.getElementById('budgetSummaryLine');
+        if(summaryLine) summaryLine.innerHTML = salaryBudgetSummaryHtml(state.salary, totalBudget);
       });
       input.addEventListener('change', function(){
         var v = parseFloat(input.value);
@@ -1826,17 +1839,11 @@
     }
     renderInsightsInto('insightsList', curMonth, true);
 
-    var totalBudget = 0, totalBudgetedSpent = 0;
-    CATEGORIES.forEach(function(c){
-      var b = state.budgets[c.key] || 0;
-      totalBudget += b;
-      if(b>0) totalBudgetedSpent += catTotals[c.key] || 0;
-    });
+    var totalBudget = currentTotalBudget();
     var overCount = 0;
     CATEGORIES.forEach(function(c){ var b=state.budgets[c.key]||0; var s=catTotals[c.key]||0; if(b>0 && s>b) overCount++; });
-    document.getElementById('budgetSummaryLine').innerHTML = totalBudget>0
-      ? ('Budgeted ' + fmt(totalBudget) + ' · Spent ' + fmt(totalBudgetedSpent) + ' · ' + budgetRemainingHtml(totalBudget, totalBudgetedSpent) + (overCount>0 ? ' · <span style="color:var(--danger);">'+overCount+' categor'+(overCount===1?'y':'ies')+' over budget</span>' : ''))
-      : 'No budgets set yet — set them below.';
+    document.getElementById('budgetSummaryLine').innerHTML = salaryBudgetSummaryHtml(state.salary, totalBudget)
+      + (overCount>0 ? ' · <span style="color:var(--danger);">'+overCount+' categor'+(overCount===1?'y':'ies')+' over budget</span>' : '');
     document.getElementById('budgetList').innerHTML = buildEditableBudgetRows(catTotals);
     wireEditableBudgetRows(catTotals);
 
@@ -3063,6 +3070,17 @@
       ? ('<span style="color:var(--accent);">'+fmt(remaining)+' left this month</span>')
       : ('<span style="color:var(--danger);">'+fmt(Math.abs(remaining))+' over budget</span>');
   }
+  function currentTotalBudget(){
+    var total = 0;
+    CATEGORIES.forEach(function(c){ total += state.budgets[c.key] || 0; });
+    return total;
+  }
+  function salaryBudgetSummaryHtml(salary, totalBudget){
+    var unallocated = salary - totalBudget;
+    return unallocated>=0
+      ? ('<span style="color:var(--accent);">'+fmt(unallocated)+' left to allocate</span> from your '+fmt(salary)+' salary (budgeted '+fmt(totalBudget)+')')
+      : ('<span style="color:var(--danger);">'+fmt(Math.abs(unallocated))+' over your '+fmt(salary)+' salary</span> (budgeted '+fmt(totalBudget)+')');
+  }
   function updateBudgetRemainingLine(key, catTotals){
     var input = document.getElementById('budget_'+key);
     var line = document.getElementById('budgetRemaining_'+key);
@@ -3071,7 +3089,20 @@
     var spent = catTotals[key] || 0;
     line.innerHTML = budgetRemainingHtml(budget, spent);
   }
+  function updateBudgetSalaryLine(){
+    var line = document.getElementById('budgetSalaryLine');
+    if(!line) return;
+    var salaryInput = document.getElementById('setSalary');
+    var salary = salaryInput ? (parseFloat(salaryInput.value) || 0) : state.salary;
+    var totalBudget = 0;
+    CATEGORIES.forEach(function(c){
+      var input = document.getElementById('budget_'+c.key);
+      totalBudget += input ? (parseFloat(input.value) || 0) : (state.budgets[c.key] || 0);
+    });
+    line.innerHTML = salaryBudgetSummaryHtml(salary, totalBudget);
+  }
   function renderBudgetInputs(){
+    document.getElementById('setSalary').value = state.salary;
     var box = document.getElementById('budgetInputs');
     var curMonth = new Date().toISOString().slice(0,7);
     var catTotals = computeMonthTotals(curMonth).catTotals;
@@ -3083,9 +3114,12 @@
       updateBudgetRemainingLine(c.key, catTotals);
       document.getElementById('budget_'+c.key).addEventListener('input', function(){
         updateBudgetRemainingLine(c.key, catTotals);
+        updateBudgetSalaryLine();
       });
     });
+    updateBudgetSalaryLine();
   }
+  document.getElementById('setSalary').addEventListener('input', updateBudgetSalaryLine);
   document.getElementById('saveBudgets').addEventListener('click', function(){
     var next = {};
     CATEGORIES.forEach(function(c){
@@ -3094,6 +3128,9 @@
     });
     state.budgets = next;
     save(LS_BUDGETS, state.budgets);
+    var salaryVal = parseFloat(document.getElementById('setSalary').value);
+    state.salary = isNaN(salaryVal) ? 0 : Math.max(0, salaryVal);
+    save(LS_SALARY, state.salary);
     toast('Budgets saved');
     renderDashboard();
   });
