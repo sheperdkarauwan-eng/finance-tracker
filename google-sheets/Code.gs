@@ -4,8 +4,10 @@
  * Setup (once):
  *   1. Create a blank Google Sheet, then Extensions > Apps Script.
  *   2. Replace everything in Code.gs with this file and save.
- *   3. Back in the sheet, reload. Use the "Finance tracker" menu > "Build dashboard".
- *      Approve the permissions prompt. It shows your sync key when done.
+ *   3. In the Apps Script editor, pick "setup" in the function dropdown at the top
+ *      and press Run. Approve the permissions prompt (Advanced > Go to project).
+ *      Your sync key is then written in the "Settings" tab of the sheet, cell B3.
+ *      (In a desktop browser the sheet also gets a "Finance tracker" menu with the same option.)
  *   4. In Apps Script: Deploy > New deployment > Web app.
  *      Execute as: Me. Who has access: Anyone. Copy the Web app URL.
  *   5. In the app: Settings > Google Sheets sync, paste the URL and the key.
@@ -113,6 +115,9 @@ function setup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   setupSheets_(ss);
   var key = getOrCreateKey_();
+  var settings = ss.getSheetByName('Settings');
+  settings.getRange('A3:B3').setValues([['Sync key', key]]);
+  settings.getRange('A3').setFontWeight('bold');
   ss.getSheetByName('Dashboard').activate();
   try {
     SpreadsheetApp.getUi().alert('Dashboard built',
