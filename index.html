@@ -700,7 +700,9 @@
 
       <div class="card">
         <h2>Google Sheets sync</h2>
-        <div style="font-size:12px;line-height:1.5;color:var(--muted);">Sends all your data to your own Google Sheet, which builds a dashboard with tables and charts. One-time setup: follow the steps at the top of <a href="https://github.com/sheperdkarauwan-eng/finance-tracker/blob/main/google-sheets/Code.gs" target="_blank" rel="noopener" style="color:var(--accent2);">this script</a>, then paste the Web app URL and sync key below.</div>
+        <div style="font-size:12px;line-height:1.5;color:var(--muted);">Sends all your data to your own Google Sheet, which builds a dashboard with tables and charts. One-time setup (easiest on a computer): copy the script, open a blank Google Sheet, go to Extensions &gt; Apps Script, paste it in, and follow the steps written at its top. Then paste the Web app URL and sync key below.</div>
+        <button class="btn-secondary" id="copyScriptBtn">Copy script</button>
+        <textarea id="scriptFallback" readonly style="display:none;margin-top:8px;"></textarea>
         <label>Web app URL</label>
         <input type="text" id="sheetUrl" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
         <label>Sync key</label>
@@ -3378,6 +3380,24 @@
     if(!url || !sheetCfg.key){ renderSheetStatus(); toast('Saved'); return; }
     document.getElementById('sheetStatus').textContent = 'Syncing...';
     syncToSheet().then(function(ok){ toast(ok ? 'Synced to Google Sheets' : 'Sync failed, see details below'); });
+  });
+
+  document.getElementById('copyScriptBtn').addEventListener('click', function(){
+    var fallback = document.getElementById('scriptFallback');
+    fetch('google-sheets/Code.gs', { cache:'no-store' })
+      .then(function(r){ if(!r.ok) throw new Error('not found'); return r.text(); })
+      .then(function(code){
+        fallback.value = code;
+        return navigator.clipboard.writeText(code).then(function(){
+          fallback.style.display = 'none';
+          toast('Script copied');
+        }, function(){
+          fallback.style.display = 'block';
+          fallback.focus(); fallback.select();
+          toast('Select all in the box below and copy');
+        });
+      })
+      .catch(function(){ toast('Could not load the script, are you online?'); });
   });
 
   // ---------- Init ----------
