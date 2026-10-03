@@ -100,7 +100,6 @@
   .goal-top .target{font-size:13px;color:var(--muted);}
   .bar-wrap{position:relative;height:16px;background:var(--card2);border-radius:8px;overflow:hidden;margin-bottom:6px;}
   .bar-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:8px;transition:width .3s;}
-  .bar-milestone{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--warn);}
   .goal-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:10px;}
   .pace-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .pace-box{background:var(--card2);border-radius:var(--radius);padding:10px;font-size:12px;}
@@ -221,9 +220,6 @@
   .insight-row.warning{border-left:3px solid var(--danger);}
   .insight-row.tip{border-left:3px solid var(--accent2);}
   .insight-row.success{border-left:3px solid var(--accent);}
-  #suggestionCard{border-color:var(--accent2);}
-  #suggestionCard .actions{display:flex;gap:8px;margin-top:12px;}
-  #suggestionCard .actions button{margin-top:0;flex:1;}
 </style>
 </head>
 <body>
@@ -258,15 +254,6 @@
         <div class="rate-line" id="balAsOf" style="margin:8px 0 0;"></div>
       </div>
 
-      <div class="card" id="suggestionCard" style="display:none;">
-        <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg> Suggestion</h2>
-        <div id="suggestionText" style="font-size:13px;line-height:1.5;"></div>
-        <div class="actions">
-          <button class="btn-primary" id="suggestionApply">Move to Savings</button>
-          <button class="btn-secondary" id="suggestionDismiss">Dismiss</button>
-        </div>
-      </div>
-
       <div class="card">
         <h2>Insights</h2>
         <div id="insightsList"></div>
@@ -298,26 +285,6 @@
         <div class="budget-summary-line" id="subsHomeSummary"></div>
         <div id="subsHomeList"></div>
         <button class="btn-secondary" id="subsHomeManage" style="margin-top:12px;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Manage in Subs</button>
-      </div>
-
-      <div class="card" id="goalCard">
-        <h2>Masters tuition goal</h2>
-        <div class="goal-top">
-          <div class="amt" id="goalAmt">€0</div>
-          <div class="target" id="goalTarget">of €20,000</div>
-        </div>
-        <div class="bar-wrap">
-          <div class="bar-fill" id="goalBar" style="width:0%"></div>
-          <div class="bar-milestone" id="goalMilestoneMark" style="left:50%"></div>
-        </div>
-        <div class="goal-meta">
-          <span>Milestone: €10,000 by May 2027</span>
-          <span>Final: Sept 2027</span>
-        </div>
-        <div class="pace-grid">
-          <div class="pace-box"><div class="t">Pace needed → milestone</div><div class="v" id="paceMilestone">-</div></div>
-          <div class="pace-box"><div class="t">Pace needed → final €20k</div><div class="v" id="paceFinal">-</div></div>
-        </div>
       </div>
 
       <div class="card">
@@ -711,18 +678,6 @@
         <button class="btn-secondary" id="saveTransfer">Record transfer</button>
       </div>
       <div class="card">
-        <h2>Goal settings</h2>
-        <label>Target amount (EUR)</label>
-        <input type="number" id="setTarget">
-        <label>Milestone amount (EUR)</label>
-        <input type="number" id="setMilestoneAmt">
-        <label>Milestone date</label>
-        <input type="date" id="setMilestoneDate">
-        <label>Final date</label>
-        <input type="date" id="setFinalDate">
-        <button class="btn-primary" id="saveGoal">Save goal settings</button>
-      </div>
-      <div class="card">
         <h2>Budgeting</h2>
         <label style="margin-top:0;">Monthly salary (EUR)</label>
         <input type="number" id="setSalary" inputmode="decimal" step="1" min="0">
@@ -893,7 +848,6 @@
     transactions: load(LS_TX, []),
     savings: load(LS_SAV, []),
     rate: load(LS_RATE, {rate: 17300, updatedAt: null}),
-    goal: load(LS_GOAL, {target:20000, milestoneAmt:10000, milestoneDate:'2027-05-01', finalDate:'2027-09-01'}),
     salary: load(LS_SALARY, 606),
     expectedExpenses: load(LS_EXPECTED, []),
     budgets: load(LS_BUDGETS, DEFAULT_BUDGETS),
@@ -980,7 +934,7 @@
 
   // ---------- Navigation ----------
   var views = ['dashboard','add','history','savings','loans','tours','subs','settings'];
-  var titles = {dashboard:['Dashboard','Your money, at a glance'], add:['Add transaction','Log income or an expense'], history:['History','All your transactions'], savings:['Savings goal','€20,000 for your masters'], loans:['Loans','Money out, and money back'], tours:['Tours','Advances you paid, and got back'], subs:['Subscriptions & Utilities','Recurring costs, tracked'], settings:['Settings','Rates, goal & backup']};
+  var titles = {dashboard:['Dashboard','Your money, at a glance'], add:['Add transaction','Log income or an expense'], history:['History','All your transactions'], savings:['Savings','Money set aside'], loans:['Loans','Money out, and money back'], tours:['Tours','Advances you paid, and got back'], subs:['Subscriptions & Utilities','Recurring costs, tracked'], settings:['Settings','Rates, goal & backup']};
 
   function showView(name){
     views.forEach(function(v){
@@ -1643,16 +1597,12 @@
     userOverrodeCategory = false;
     document.getElementById('categoryHint').style.display = 'none';
     setTxAccount('bank');
-    if(state.txType==='income'){
-      pendingSuggestion = buildIncomeSuggestion(amount);
-    }
     toast(state.txType==='expense' ? 'Expense added' : 'Income added');
     showView('dashboard');
   });
 
   // ---------- Dashboard ----------
   var chartCategory=null, chartTrend=null;
-  var pendingSuggestion = null;
 
   function monthKey(d){ return d.slice(0,7); }
 
@@ -1792,7 +1742,7 @@
   var GENERAL_TIPS = [
     'Move part of every irregular payment into Savings the same day you receive it — future you won\'t miss what past you never saw.',
     'Since your income is irregular, plan your budget around your lowest realistic month, not your best one.',
-    'A small buffer (even €200-300) set aside for "Unexpected" costs keeps a heat-wave AC purchase from derailing your masters fund.',
+    'A small buffer (even €200-300) set aside for "Unexpected" costs keeps a heat-wave AC purchase from derailing your savings.',
     'Review Subscriptions every few months — small recurring costs are easy to forget about.',
     'Offering and Personal Development are values-based spending — budget them on purpose so Leisure doesn\'t quietly crowd them out.',
     'When a side-job payment lands, decide its split (savings / bills / spending) before it hits your everyday balance.'
@@ -1828,22 +1778,11 @@
 
     var unexpected = cur.catTotals['unexpected']||0;
     if(unexpected>0 && cur.expense>0 && (unexpected/cur.expense)>0.3){
-      insights.push({type:'tip', text:'Unexpected costs were over '+Math.round((unexpected/cur.expense)*100)+'% of spending this month — consider a small emergency buffer so these stop eating into your masters fund.'});
+      insights.push({type:'tip', text:'Unexpected costs were over '+Math.round((unexpected/cur.expense)*100)+'% of spending this month — consider a small emergency buffer so these stop eating into your savings.'});
     }
 
     if(isCurrentMonth){
-      var savingsTotal = state.savings.reduce(function(a,s){return a+s.amount;},0);
       var now = new Date();
-      var msDate = new Date(state.goal.milestoneDate);
-      if(now < msDate){
-        var need = Math.max(0, state.goal.milestoneAmt - savingsTotal);
-        var pace = need / monthsBetween(now, msDate);
-        if(need>0 && cur.savings < pace*0.5){
-          insights.push({type:'warning', text:'Behind pace for the '+fmt(state.goal.milestoneAmt)+' milestone — need roughly '+fmt(pace)+'/month, only '+fmt(cur.savings)+' saved so far this month.'});
-        }
-      } else if(savingsTotal>=state.goal.milestoneAmt && savingsTotal<state.goal.target){
-        insights.push({type:'success', text:'Milestone reached! Keep going toward the final '+fmt(state.goal.target)+'.'});
-      }
       if(cur.income===0 && now.getDate()>=20){
         insights.push({type:'tip', text:'No income logged yet this month — remember to add side-job payments as they come in.'});
       }
@@ -1869,45 +1808,6 @@
     }).join('');
   }
 
-  function buildIncomeSuggestion(amount){
-    var savingsTotal = state.savings.reduce(function(a,s){return a+s.amount;},0);
-    var now = new Date();
-    var msDate = new Date(state.goal.milestoneDate);
-    var fnDate = new Date(state.goal.finalDate);
-    var onFirstLeg = now < msDate;
-    var targetAmt = onFirstLeg ? state.goal.milestoneAmt : state.goal.target;
-    var targetDate = onFirstLeg ? msDate : fnDate;
-    var remaining = Math.max(0, targetAmt - savingsTotal);
-
-    if(remaining<=0){
-      return { text: 'You already reached '+fmt(targetAmt)+' — keep saving what you can toward the next goal.', amount: 0 };
-    }
-
-    var months = monthsBetween(now, targetDate);
-    var pace = remaining / months;
-    var suggestAmt = Math.round(Math.min(amount, pace) * 100) / 100;
-    if(suggestAmt<=0) suggestAmt = Math.round(amount*0.3*100)/100;
-    var pctOfIncome = Math.round((suggestAmt/amount)*100);
-
-    return {
-      text: 'You just logged '+fmt(amount)+' in income. To stay on pace for your masters goal, consider moving '+fmt(suggestAmt)+' ('+pctOfIncome+'%) into Savings now.',
-      amount: suggestAmt
-    };
-  }
-
-  document.getElementById('suggestionDismiss').addEventListener('click', function(){
-    pendingSuggestion = null;
-    renderDashboard();
-  });
-  document.getElementById('suggestionApply').addEventListener('click', function(){
-    if(!pendingSuggestion || pendingSuggestion.amount<=0) return;
-    state.savings.push({ id: uid(), date: todayStr(), amount: pendingSuggestion.amount, note: 'Auto-suggested from income' });
-    save(LS_SAV, state.savings);
-    toast('Added '+fmt(pendingSuggestion.amount)+' to savings');
-    pendingSuggestion = null;
-    renderDashboard();
-  });
-
   function renderBalances(){
     var bal = computeBalances();
     document.getElementById('balBank').textContent = fmt(bal.bank);
@@ -1930,14 +1830,6 @@
     document.getElementById('mExpense').textContent = fmt(mExpense);
     document.getElementById('mNet').textContent = fmtSigned(mIncome-mExpense);
 
-    var suggestionCard = document.getElementById('suggestionCard');
-    if(pendingSuggestion){
-      suggestionCard.style.display = 'block';
-      document.getElementById('suggestionText').textContent = pendingSuggestion.text;
-      document.getElementById('suggestionApply').style.display = pendingSuggestion.amount>0 ? 'block' : 'none';
-    } else {
-      suggestionCard.style.display = 'none';
-    }
     renderInsightsInto('insightsList', curMonth, true);
 
     var totalBudget = currentTotalBudget();
@@ -1950,41 +1842,6 @@
 
     renderSubsHomeCard();
     renderReviewCard();
-
-    // Goal
-    var savingsTotal = state.savings.reduce(function(a,s){return a+s.amount;},0);
-    document.getElementById('goalAmt').textContent = fmt(Math.max(savingsTotal,0));
-    document.getElementById('goalTarget').textContent = 'of ' + fmt(state.goal.target);
-    var pct = Math.min(100, Math.max(0, (savingsTotal/state.goal.target)*100));
-    document.getElementById('goalBar').style.width = pct + '%';
-    var milestonePct = Math.min(100, (state.goal.milestoneAmt/state.goal.target)*100);
-    document.getElementById('goalMilestoneMark').style.left = milestonePct + '%';
-
-    var msDate = new Date(state.goal.milestoneDate);
-    var fnDate = new Date(state.goal.finalDate);
-
-    var paceM = document.getElementById('paceMilestone');
-    var paceF = document.getElementById('paceFinal');
-
-    if(now < msDate){
-      var need1 = Math.max(0, state.goal.milestoneAmt - savingsTotal);
-      var m1 = monthsBetween(now, msDate);
-      paceM.textContent = fmt(need1/m1) + '/mo';
-      paceM.className = 'v' + (need1<=0?' ok':'');
-    } else {
-      paceM.textContent = savingsTotal>=state.goal.milestoneAmt ? 'reached ✓' : 'overdue';
-      paceM.className='v' + (savingsTotal>=state.goal.milestoneAmt?' ok':'');
-    }
-
-    if(now < fnDate){
-      var need2 = Math.max(0, state.goal.target - savingsTotal);
-      var m2 = monthsBetween(now, fnDate);
-      paceF.textContent = fmt(need2/m2) + '/mo';
-      paceF.className = 'v' + (need2<=0?' ok':'');
-    } else {
-      paceF.textContent = savingsTotal>=state.goal.target ? 'reached ✓' : 'overdue';
-      paceF.className='v' + (savingsTotal>=state.goal.target?' ok':'');
-    }
 
     // Category chart
     var cs = getComputedStyle(document.documentElement);
@@ -2285,7 +2142,7 @@
 
   // ---------- Savings (multiple accounts) ----------
   function getSavingsAccountsForUI(){
-    var list = [{ id: 'masters', name: 'Masters Tuition', target: state.goal.target }];
+    var list = [{ id: 'masters', name: 'Savings', target: 0 }];
     state.savingsAccounts.forEach(function(a){
       list.push({ id: a.id, name: a.name, target: a.target || 0 });
     });
@@ -3281,10 +3138,6 @@
   });
 
   function renderSettings(){
-    document.getElementById('setTarget').value = state.goal.target;
-    document.getElementById('setMilestoneAmt').value = state.goal.milestoneAmt;
-    document.getElementById('setMilestoneDate').value = state.goal.milestoneDate;
-    document.getElementById('setFinalDate').value = state.goal.finalDate;
     renderBudgetInputs();
     updateRateLine();
 
@@ -3318,17 +3171,6 @@
     toast('Transfer recorded');
     renderSettings();
   });
-  document.getElementById('saveGoal').addEventListener('click', function(){
-    state.goal = {
-      target: parseFloat(document.getElementById('setTarget').value) || 20000,
-      milestoneAmt: parseFloat(document.getElementById('setMilestoneAmt').value) || 10000,
-      milestoneDate: document.getElementById('setMilestoneDate').value || '2027-05-01',
-      finalDate: document.getElementById('setFinalDate').value || '2027-09-01'
-    };
-    save(LS_GOAL, state.goal);
-    toast('Goal settings saved');
-  });
-
   document.getElementById('importTxBtn').addEventListener('click', function(){
     try{
       var arr = JSON.parse(document.getElementById('importTxBox').value);
@@ -3350,7 +3192,7 @@
   });
 
   document.getElementById('exportBtn').addEventListener('click', function(){
-    var data = { transactions: state.transactions, savings: state.savings, goal: state.goal, budgets: state.budgets, accounts: state.accounts, transfers: state.transfers, savingsAccounts: state.savingsAccounts, savingsAccountEntries: state.savingsAccountEntries, loanPeople: state.loanPeople, loanEntries: state.loanEntries, tours: state.tours, tourEntries: state.tourEntries, rate: state.rate };
+    var data = { transactions: state.transactions, savings: state.savings, budgets: state.budgets, accounts: state.accounts, transfers: state.transfers, savingsAccounts: state.savingsAccounts, savingsAccountEntries: state.savingsAccountEntries, loanPeople: state.loanPeople, loanEntries: state.loanEntries, tours: state.tours, tourEntries: state.tourEntries, rate: state.rate };
     document.getElementById('exportBox').value = JSON.stringify(data, null, 2);
     toast('Exported below — copy it somewhere safe');
   });
@@ -3359,7 +3201,6 @@
       var data = JSON.parse(document.getElementById('importBox').value);
       if(data.transactions) { state.transactions = data.transactions; save(LS_TX, state.transactions); }
       if(data.savings) { state.savings = data.savings; save(LS_SAV, state.savings); }
-      if(data.goal) { state.goal = data.goal; save(LS_GOAL, state.goal); }
       if(data.budgets) { state.budgets = data.budgets; save(LS_BUDGETS, state.budgets); }
       if(data.accounts) { state.accounts = data.accounts; save(LS_ACCOUNTS, state.accounts); }
       if(data.transfers) { state.transfers = data.transfers; save(LS_TRANSFERS, state.transfers); }
