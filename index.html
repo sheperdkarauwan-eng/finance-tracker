@@ -699,6 +699,18 @@
       </div>
 
       <div class="card">
+        <h2>Google Sheets sync</h2>
+        <div style="font-size:12px;line-height:1.5;color:var(--muted);">Sends all your data to your own Google Sheet, which builds a dashboard with tables and charts. One-time setup: follow the steps at the top of <a href="https://github.com/sheperdkarauwan-eng/finance-tracker/blob/main/google-sheets/Code.gs" target="_blank" rel="noopener" style="color:var(--accent2);">this script</a>, then paste the Web app URL and sync key below.</div>
+        <label>Web app URL</label>
+        <input type="text" id="sheetUrl" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+        <label>Sync key</label>
+        <input type="text" id="sheetKey" placeholder="shown when you build the dashboard" autocomplete="off">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;"><input type="checkbox" id="sheetAuto" style="width:auto;"> Sync automatically after every change</label>
+        <button class="btn-primary" id="sheetSyncBtn">Save and sync now</button>
+        <div id="sheetStatus" style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center;"></div>
+      </div>
+
+      <div class="card">
         <h2>Auto-import link</h2>
         <div style="font-size:12px;line-height:1.5;color:var(--muted);">Google Wallet doesn't let other apps read your purchases, but your phone can send them here. An Android automation app (MacroDroid, Tasker) can watch for a payment notification and open this link with the details filled in:</div>
         <div style="font-family:monospace;font-size:11px;word-break:break-all;margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);">https://sheperdkarauwan-eng.github.io/finance-tracker/?addtx=12.50&amp;m=Pewex&amp;acct=bank</div>
@@ -819,6 +831,7 @@
   var LS_GOAL = 'pft_goal_v1';
   var LS_SALARY = 'pft_salary_v1';
   var LS_EXPECTED = 'pft_expected_expenses_v1';
+  var LS_SHEET = 'pft_sheet_sync_v1';
   var LS_CURR = 'pft_currency_v1';
   var LS_BUDGETS = 'pft_budgets_v1';
   var LS_ACCOUNTS = 'pft_accounts_v1';
@@ -840,7 +853,10 @@
       return v ? JSON.parse(v) : fallback;
     }catch(e){ return fallback; }
   }
-  function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+  function save(key, val){
+    localStorage.setItem(key, JSON.stringify(val));
+    if(key !== LS_SHEET && typeof scheduleSheetSync === 'function') scheduleSheetSync();
+  }
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
   function todayStr(){ return new Date().toISOString().slice(0,10); }
 
@@ -3282,8 +3298,91 @@
     return sug ? 'categorized' : 'review';
   }
 
+  // ---------- Google Sheets sync ----------
+  var sheetCfg = load(LS_SHEET, { url:'', key:'', auto:false, lastSync:0, lastError:'' });
+  var sheetSyncTimer = null;
+
+  function buildSheetPayload(){
+    var r2 = function(n){ return Math.round(n*100)/100; };
+    var accName = {};
+    state.savingsAccounts.forEach(function(a){ accName[a.id] = a.name; });
+    var personName = {};
+    state.loanPeople.forEach(function(pp){ personName[pp.id] = pp.name; });
+    var tourName = {};
+    state.tours.forEach(function(t){ tourName[t.id] = t.name; });
+    return {
+      key: sheetCfg.key,
+      salary: state.salary,
+      transactions: state.transactions.map(function(t){
+        var isExp = t.type==='expense';
+        return [t.date, t.type, isExp ? (CAT_MAP[t.category] ? CAT_MAP[t.category].label : 'Uncategorized') : '', t.amount, t.account || 'bank', t.note || '', isExp ? '' : (t.source || 'Income'), t.needsReview ? 'yes' : '', t.id];
+      }),
+      budgets: CATEGORIES.map(function(c){ return [c.label, state.budgets[c.key] || 0]; }).concat([['Uncategorized', 0]]),
+      expected: state.expectedExpenses.map(function(e){ return [e.note, e.amount]; }),
+      recurring: state.recurring.map(function(r){
+        return [r.name, r.type==='subscription' ? 'Subscription' : 'Utility', r.cycle, r.amount, r2(r.cycle==='yearly' ? r.amount/12 : r.amount), r.billingDay || '', r.account || 'bank', r.note || ''];
+      }),
+      savings: state.savings.map(function(e){ return [e.date, 'Savings', e.amount, e.note || '']; })
+        .concat(state.savingsAccountEntries.map(function(e){ return [e.date, accName[e.accountId] || 'Other account', e.amount, e.note || '']; })),
+      loans: state.loanEntries.map(function(e){
+        return [e.date, personName[e.personId] || 'Unknown', e.type==='lent' ? 'Lent' : 'Repaid', e.amount, e.type==='lent' ? e.amount : -e.amount, e.account || 'bank', e.note || ''];
+      }),
+      tours: state.tourEntries.map(function(e){
+        var cat = e.type==='expense' && TOUR_CAT_MAP[e.category] ? TOUR_CAT_MAP[e.category].label : '';
+        return [e.date, tourName[e.tourId] || 'Unknown tour', e.type==='expense' ? 'Paid' : 'Reimbursed', cat, e.amount, e.type==='expense' ? e.amount : -e.amount, e.account || 'bank', e.note || ''];
+      })
+    };
+  }
+
+  function renderSheetStatus(){
+    var el = document.getElementById('sheetStatus');
+    if(!sheetCfg.url){ el.textContent = 'Not connected'; return; }
+    if(sheetCfg.lastError){ el.innerHTML = '<span style="color:var(--danger);">Last sync failed: '+escapeHtml(sheetCfg.lastError)+'</span>'; return; }
+    el.textContent = sheetCfg.lastSync ? ('Last synced ' + new Date(sheetCfg.lastSync).toLocaleString()) : 'Connected, not synced yet';
+  }
+
+  function syncToSheet(){
+    if(!sheetCfg.url || !sheetCfg.key) return Promise.resolve(false);
+    return fetch(sheetCfg.url, { method:'POST', body: JSON.stringify(buildSheetPayload()) })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if(!res.ok) throw new Error(res.error || 'unknown error');
+        sheetCfg.lastSync = Date.now(); sheetCfg.lastError = '';
+        save(LS_SHEET, sheetCfg); renderSheetStatus();
+        return true;
+      })
+      .catch(function(err){
+        sheetCfg.lastError = navigator.onLine ? (err && err.message ? err.message : 'request failed') : 'offline';
+        save(LS_SHEET, sheetCfg); renderSheetStatus();
+        return false;
+      });
+  }
+
+  function scheduleSheetSync(){
+    if(!sheetCfg || !sheetCfg.auto || !sheetCfg.url || !sheetCfg.key) return;
+    clearTimeout(sheetSyncTimer);
+    sheetSyncTimer = setTimeout(syncToSheet, 4000);
+  }
+
+  document.getElementById('sheetUrl').value = sheetCfg.url;
+  document.getElementById('sheetKey').value = sheetCfg.key;
+  document.getElementById('sheetAuto').checked = sheetCfg.auto;
+  renderSheetStatus();
+  document.getElementById('sheetSyncBtn').addEventListener('click', function(){
+    var url = document.getElementById('sheetUrl').value.trim();
+    if(url && !/^https:\/\/script\.google(usercontent)?\.com\//.test(url)){ toast('That doesn\'t look like an Apps Script web app URL'); return; }
+    sheetCfg.url = url;
+    sheetCfg.key = document.getElementById('sheetKey').value.trim();
+    sheetCfg.auto = document.getElementById('sheetAuto').checked;
+    save(LS_SHEET, sheetCfg);
+    if(!url || !sheetCfg.key){ renderSheetStatus(); toast('Saved'); return; }
+    document.getElementById('sheetStatus').textContent = 'Syncing...';
+    syncToSheet().then(function(ok){ toast(ok ? 'Synced to Google Sheets' : 'Sync failed, see details below'); });
+  });
+
   // ---------- Init ----------
   fetchRate();
+  if(sheetCfg.auto) setTimeout(syncToSheet, 2000);
   var initialView = 'add';
   var qs = new URLSearchParams(location.search);
   if(qs.has('addtx')){
