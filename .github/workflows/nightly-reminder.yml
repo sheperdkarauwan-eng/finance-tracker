@@ -1,9 +1,9 @@
-name: Nightly expense reminder
+name: Nightly expense review reminder
 
 on:
   schedule:
     # Runs every hour; the job itself checks whether it's currently
-    # 21:00 (9 PM) in Europe/Rome before actually sending anything.
+    # 22:00 (10 PM) in Europe/Rome before actually sending anything.
     # This avoids hardcoding a UTC time that would drift with daylight
     # saving time (CET/CEST).
     - cron: '0 * * * *'
@@ -13,14 +13,14 @@ jobs:
   remind:
     runs-on: ubuntu-latest
     steps:
-      - name: Send reminder if it's 21:00 in Rome
+      - name: Send reminder if it's 22:00 in Rome
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           current_hour=$(TZ=Europe/Rome date +%H)
           echo "Current hour in Europe/Rome: $current_hour"
-          if [ "$current_hour" != "21" ]; then
-            echo "Not 21:00 in Rome yet, skipping."
+          if [ "$current_hour" != "22" ]; then
+            echo "Not 22:00 in Rome yet, skipping."
             exit 0
           fi
           if [ -z "$NTFY_TOPIC" ]; then
@@ -28,9 +28,9 @@ jobs:
             exit 1
           fi
           curl -s \
-            -H "Title: Log today's expenses" \
+            -H "Title: Review today's purchases" \
             -H "Priority: default" \
             -H "Tags: moneybag" \
-            -H "Click: https://sheperdkarauwan-eng.github.io/finance-tracker/" \
-            -d "Don't forget to add today's spending to your finance tracker." \
+            -H "Click: https://sheperdkarauwan-eng.github.io/finance-tracker/?review=1" \
+            -d "Check for uncategorized purchases and log anything that is missing." \
             "https://ntfy.sh/$NTFY_TOPIC"

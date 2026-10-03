@@ -272,6 +272,12 @@
         <div id="insightsList"></div>
       </div>
 
+      <div class="card" id="reviewCard" style="display:none;">
+        <h2 id="reviewTitle">Needs review</h2>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Auto-added purchases we couldn't categorize. Tap a category to file each one. Next time the same merchant shows up it will be categorized automatically.</div>
+        <div id="reviewList"></div>
+      </div>
+
       <div class="card">
         <h2>This month</h2>
         <div class="balance-grid">
@@ -735,6 +741,13 @@
         <input type="number" id="expExpAmount" inputmode="decimal" step="0.01" placeholder="0.00">
         <button class="btn-secondary" id="addExpExp" style="margin-top:10px;">+ Add expected expense</button>
         <div id="expExpList" style="margin-top:14px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>Auto-import link</h2>
+        <div style="font-size:12px;line-height:1.5;color:var(--muted);">Google Wallet doesn't let other apps read your purchases, but your phone can send them here. An Android automation app (MacroDroid, Tasker) can watch for a payment notification and open this link with the details filled in:</div>
+        <div style="font-family:monospace;font-size:11px;word-break:break-all;margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);">https://sheperdkarauwan-eng.github.io/finance-tracker/?addtx=12.50&amp;m=Pewex&amp;acct=bank</div>
+        <div style="font-size:11px;line-height:1.5;color:var(--muted);margin-top:8px;">Known merchants are categorized automatically; new ones land in "Needs review" on Home. Optional: <code>d=YYYY-MM-DD</code> for the date, <code>id=...</code> to avoid duplicates.</div>
       </div>
 
       <div class="card">
@@ -1484,7 +1497,7 @@
     if(norm.length < 3) return null;
     var counts = {}, total = 0;
     state.transactions.forEach(function(t){
-      if(t.type !== 'expense' || !t.note) return;
+      if(t.type !== 'expense' || !t.note || !t.category || t.needsReview) return;
       var tn = normalizeNote(t.note);
       if(tn.length < 3) return;
       if(tn.indexOf(norm) !== -1 || norm.indexOf(tn) !== -1){
@@ -1602,6 +1615,7 @@
         existing.note = note;
         if(state.txType==='expense'){
           existing.category = state.selectedCategory;
+          delete existing.needsReview;
           delete existing.source;
         } else {
           existing.source = document.getElementById('sourceInput').value.trim();
@@ -1935,6 +1949,7 @@
     wireEditableBudgetRows(catTotals);
 
     renderSubsHomeCard();
+    renderReviewCard();
 
     // Goal
     var savingsTotal = state.savings.reduce(function(a,s){return a+s.amount;},0);
@@ -2049,7 +2064,7 @@
 
   function txRowHtml(t){
     var iconName = t.type==='income' ? 'wallet' : (CAT_MAP[t.category] ? CAT_MAP[t.category].icon : 'help');
-    var label = t.type==='income' ? (t.source || 'Income') : (CAT_MAP[t.category] ? CAT_MAP[t.category].label : 'Other');
+    var label = t.type==='income' ? (t.source || 'Income') : (CAT_MAP[t.category] ? CAT_MAP[t.category].label : 'Uncategorized');
     var noteHtml = t.note ? ('<div class="tx-note">'+escapeHtml(t.note)+'</div>') : '';
     return '<div class="tx-item" data-id="'+t.id+'">'+
       '<div class="tx-emoji">'+icon(iconName)+'</div>'+
@@ -2065,7 +2080,7 @@
     list.forEach(function(t){
       var key, label, iconName;
       if(t.type==='income'){ key = '__income__'; label = 'Income'; iconName = 'wallet'; }
-      else { var c = CAT_MAP[t.category]; key = t.category || '__other__'; label = c ? c.label : 'Other'; iconName = c ? c.icon : 'help'; }
+      else { var c = CAT_MAP[t.category]; key = t.category || '__other__'; label = c ? c.label : 'Uncategorized'; iconName = c ? c.icon : 'help'; }
       if(!groups[key]){ groups[key] = { label:label, icon:iconName, total:0, items:[] }; order.push(key); }
       groups[key].total += t.amount;
       groups[key].items.push(t);
@@ -3321,6 +3336,10 @@
       var added = 0;
       arr.forEach(function(t){
         if(!t.id) t.id = uid();
+        if(t.type==='expense' && !CAT_MAP[t.category]){
+          var sug = suggestCategoryForNote(t.note);
+          if(sug){ t.category = sug.category; } else { t.category = ''; t.needsReview = true; }
+        }
         var exists = state.transactions.some(function(x){ return x.id===t.id; });
         if(!exists){ state.transactions.push(t); added++; }
       });
@@ -3374,9 +3393,72 @@
     }
   });
 
+  // ---------- Review queue + auto-import ----------
+  function renderReviewCard(){
+    var card = document.getElementById('reviewCard');
+    var queue = state.transactions.filter(function(t){ return t.needsReview; })
+      .sort(function(a,b){ return b.date.localeCompare(a.date); });
+    if(queue.length===0){ card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    document.getElementById('reviewTitle').textContent = 'Needs review (' + queue.length + ')';
+    var shown = queue.slice(0,10);
+    var chips = CATEGORIES.map(function(c){
+      return '<button class="review-cat" data-cat="'+c.key+'" title="'+c.label+'" style="flex:1;min-width:0;padding:7px 0;border:1px solid var(--border);border-radius:var(--radius);background:transparent;color:var(--muted);font-size:15px;">'+icon(c.icon)+'</button>';
+    }).join('');
+    document.getElementById('reviewList').innerHTML = shown.map(function(t){
+      return '<div class="review-item" data-id="'+t.id+'" style="margin-bottom:14px;">'+
+        '<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;"><span style="font-weight:600;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escapeHtml(t.note || 'Purchase')+'</span><span class="tx-amt expense">'+fmt(t.amount)+'</span></div>'+
+        '<div style="font-size:10px;color:var(--muted);margin-bottom:6px;">'+t.date+'</div>'+
+        '<div style="display:flex;gap:4px;">'+chips+'</div>'+
+      '</div>';
+    }).join('') + (queue.length>shown.length ? '<div style="font-size:11px;color:var(--muted);">+'+(queue.length-shown.length)+' more after these</div>' : '');
+  }
+  document.getElementById('reviewList').addEventListener('click', function(e){
+    var btn = e.target.closest('.review-cat');
+    if(!btn) return;
+    var row = btn.closest('.review-item');
+    var tx = state.transactions.find(function(t){ return t.id===row.getAttribute('data-id'); });
+    if(!tx) return;
+    tx.category = btn.getAttribute('data-cat');
+    delete tx.needsReview;
+    save(LS_TX, state.transactions);
+    toast('Filed under ' + CAT_MAP[tx.category].label);
+    renderDashboard();
+  });
+
+  function ingestExternalTx(p){
+    var amount = parseFloat(p.amount);
+    if(!isFinite(amount) || amount<=0) return false;
+    var id = p.id ? ('ext-' + p.id) : uid();
+    if(state.transactions.some(function(t){ return t.id===id; })) return false;
+    var merchant = (p.m || '').trim().slice(0,80);
+    var date = /^\d{4}-\d{2}-\d{2}$/.test(p.d || '') ? p.d : todayStr();
+    var sug = merchant ? suggestCategoryForNote(merchant) : null;
+    var tx = { id:id, type:'expense', date:date, note:merchant, amount:amount, account:(p.acct==='cash'?'cash':'bank'), createdAt:Date.now(), category:(sug ? sug.category : ''), source:'auto-import' };
+    if(!sug) tx.needsReview = true;
+    state.transactions.push(tx);
+    save(LS_TX, state.transactions);
+    return sug ? 'categorized' : 'review';
+  }
+
   // ---------- Init ----------
   fetchRate();
-  showView('add');
+  var initialView = 'add';
+  var qs = new URLSearchParams(location.search);
+  if(qs.has('addtx')){
+    var result = ingestExternalTx({ amount:qs.get('addtx'), m:qs.get('m'), d:qs.get('d'), acct:qs.get('acct'), id:qs.get('id') });
+    history.replaceState(null, '', location.pathname);
+    initialView = 'dashboard';
+    if(result) setTimeout(function(){ toast(result==='review' ? 'Purchase added - needs a category' : 'Purchase added and categorized'); }, 300);
+  } else if(qs.has('review')){
+    history.replaceState(null, '', location.pathname);
+    initialView = 'dashboard';
+  }
+  showView(initialView);
+  if(qs.has('review')){
+    var rc = document.getElementById('reviewCard');
+    if(rc && rc.style.display!=='none') rc.scrollIntoView();
+  }
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function(){
