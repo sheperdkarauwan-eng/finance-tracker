@@ -714,9 +714,9 @@
 
       <div class="card">
         <h2>Auto-import link</h2>
-        <div style="font-size:12px;line-height:1.5;color:var(--muted);">Google Wallet doesn't let other apps read your purchases, but your phone can send them here. An Android automation app (MacroDroid, Tasker) can watch for a payment notification and open this link with the details filled in:</div>
-        <div style="font-family:monospace;font-size:11px;word-break:break-all;margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);">https://sheperdkarauwan-eng.github.io/finance-tracker/?addtx=12.50&amp;m=Pewex&amp;acct=bank</div>
-        <div style="font-size:11px;line-height:1.5;color:var(--muted);margin-top:8px;">Known merchants are categorized automatically; new ones land in "Needs review" on Home. Optional: <code>d=YYYY-MM-DD</code> for the date, <code>id=...</code> to avoid duplicates.</div>
+        <div style="font-size:12px;line-height:1.5;color:var(--muted);">Google Wallet doesn't let other apps read your purchases, but your phone can send them here. In MacroDroid, trigger on a Revolut notification and open this link, with the notification text added at the very end:</div>
+        <div style="font-family:monospace;font-size:11px;word-break:break-all;margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);">https://sheperdkarauwan-eng.github.io/finance-tracker/?acct=bank&amp;n=</div>
+        <div style="font-size:11px;line-height:1.5;color:var(--muted);margin-top:8px;">It reads notifications like "Paid €12.50 at Pewex; EUR Balance: €230". Anything else (top-ups, transfers received) is ignored. Known merchants are categorized automatically; new ones land in "Needs review" on Home. Repeated notifications are not added twice.</div>
       </div>
 
       <div class="card">
@@ -3285,6 +3285,35 @@
     renderDashboard();
   });
 
+  function parseEuroAmount(raw){
+    var s = String(raw).replace(/\s/g, '');
+    var lastComma = s.lastIndexOf(','), lastDot = s.lastIndexOf('.');
+    if(lastComma > -1 && lastDot > -1){
+      s = lastComma > lastDot ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+    } else if(lastComma > -1){
+      s = /,\d{3}$/.test(s) && s.indexOf(',') === lastComma && s.length > 4 ? s.replace(',', '') : s.replace(',', '.');
+    } else if(lastDot > -1 && /\.\d{3}$/.test(s) && s.indexOf('.') === lastDot && s.length > 4){
+      s = s.replace('.', '');
+    }
+    var n = parseFloat(s);
+    return isFinite(n) && n > 0 ? Math.round(n*100)/100 : null;
+  }
+
+  function parsePaymentNotification(text){
+    var t = String(text || '').replace(/\s+/g, ' ').trim();
+    var m = /\bpaid\s*€\s*([\d.,]+)\s+(?:at|to)\s+(.+?)(?:\s*[;·•|]|\s+EUR\s+Balanc|$)/i.exec(t);
+    if(!m) return null;
+    var amount = parseEuroAmount(m[1]);
+    if(!amount) return null;
+    return { amount: amount, merchant: m[2].replace(/[\s.,;]+$/, '').trim() };
+  }
+
+  function textHash(s){
+    var h = 5381;
+    for(var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+
   function ingestExternalTx(p){
     var amount = parseFloat(p.amount);
     if(!isFinite(amount) || amount<=0) return false;
@@ -3405,7 +3434,20 @@
   if(sheetCfg.auto) setTimeout(syncToSheet, 2000);
   var initialView = 'add';
   var qs = new URLSearchParams(location.search);
-  if(qs.has('addtx')){
+  var rawNotif = /[?&]n=/.test(location.search) ? location.search.slice(location.search.search(/[?&]n=/) + 3) : null;
+  if(rawNotif !== null){
+    var notifText;
+    try { notifText = decodeURIComponent(rawNotif); } catch(e){ notifText = rawNotif.replace(/%20/g, ' '); }
+    var parsed = parsePaymentNotification(notifText);
+    history.replaceState(null, '', location.pathname);
+    initialView = 'dashboard';
+    if(parsed){
+      var nres = ingestExternalTx({ amount:parsed.amount, m:parsed.merchant, acct:qs.get('acct'), id:(qs.get('id') || textHash(todayStr()+'|'+notifText)) });
+      setTimeout(function(){ toast(!nres ? 'Already added' : (nres==='review' ? 'Purchase added - needs a category' : 'Purchase added and categorized')); }, 300);
+    } else {
+      setTimeout(function(){ toast('Not a payment notification, nothing added'); }, 300);
+    }
+  } else if(qs.has('addtx')){
     var result = ingestExternalTx({ amount:qs.get('addtx'), m:qs.get('m'), d:qs.get('d'), acct:qs.get('acct'), id:qs.get('id') });
     history.replaceState(null, '', location.pathname);
     initialView = 'dashboard';
