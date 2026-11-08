@@ -731,6 +731,8 @@
       </div>
       <div class="card">
         <h2>Backup</h2>
+        <button class="btn-primary" id="exportXlsxBtn" style="margin-top:0;">Export to Excel (.xlsx)</button>
+        <div id="xlsxStatus" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;text-align:center;"></div>
         <button class="btn-secondary" id="exportBtn">Export data (copy JSON)</button>
         <textarea id="exportBox" placeholder="Exported JSON appears here" style="margin-top:8px;"></textarea>
         <label>Restore full backup (replaces everything)</label>
@@ -3427,6 +3429,122 @@
         });
       })
       .catch(function(){ toast('Could not load the script, are you online?'); });
+  });
+
+  // ---------- Excel export (SheetJS, loaded only when used) ----------
+  var xlsxLoadPromise = null;
+  function loadXLSX(){
+    if(window.XLSX) return Promise.resolve();
+    if(xlsxLoadPromise) return xlsxLoadPromise;
+    xlsxLoadPromise = new Promise(function(resolve, reject){
+      var sc = document.createElement('script');
+      sc.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+      sc.onload = resolve;
+      sc.onerror = function(){ xlsxLoadPromise = null; reject(new Error('could not load the Excel library, are you online?')); };
+      document.head.appendChild(sc);
+    });
+    return xlsxLoadPromise;
+  }
+
+  // Excel date serial computed in UTC so dates never shift by a day with the phone's timezone.
+  function excelDate(iso){
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    return m ? (Date.UTC(+m[1], +m[2]-1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000 : null;
+  }
+
+  function xlsxSheet(headers, rows, dateCols, moneyCols, widths){
+    var ws = XLSX.utils.aoa_to_sheet([headers].concat(rows));
+    for(var r = 1; r <= rows.length; r++){
+      dateCols.forEach(function(c){
+        var ref = XLSX.utils.encode_cell({ r:r, c:c }), cell = ws[ref];
+        var serial = cell ? excelDate(cell.v) : null;
+        if(serial !== null){ ws[ref] = { t:'n', v:serial, z:'yyyy-mm-dd' }; }
+      });
+      moneyCols.forEach(function(c){
+        var cell = ws[XLSX.utils.encode_cell({ r:r, c:c })];
+        if(cell && cell.t === 'n') cell.z = '€#,##0.00';
+      });
+    }
+    ws['!cols'] = widths.map(function(w){ return { wch:w }; });
+    if(rows.length) ws['!autofilter'] = { ref: ws['!ref'] };
+    return ws;
+  }
+
+  function buildMonthlySummaryRows(){
+    var catLabels = CATEGORIES.map(function(c){ return c.label; }).concat(['Uncategorized']);
+    var months = {};
+    function bucket(mk){
+      if(!months[mk]){ months[mk] = { income:0, expense:0, savings:0, cats:{} }; }
+      return months[mk];
+    }
+    state.transactions.forEach(function(t){
+      var b = bucket(monthKey(t.date));
+      if(t.type === 'income'){ b.income += t.amount; return; }
+      b.expense += t.amount;
+      var label = CAT_MAP[t.category] ? CAT_MAP[t.category].label : 'Uncategorized';
+      b.cats[label] = (b.cats[label] || 0) + t.amount;
+    });
+    state.savings.concat(state.savingsAccountEntries).forEach(function(e){ bucket(monthKey(e.date)).savings += e.amount; });
+    var r2 = function(n){ return Math.round(n*100)/100; };
+    var rows = Object.keys(months).sort().reverse().map(function(mk){
+      var b = months[mk];
+      return [new Date(mk+'-01T00:00:00').toLocaleDateString('en-US',{ month:'long', year:'numeric' }), r2(b.income), r2(b.expense), r2(b.income - b.expense), r2(b.savings)]
+        .concat(catLabels.map(function(l){ return r2(b.cats[l] || 0); }));
+    });
+    return { headers: ['Month', 'Income', 'Expenses', 'Net', 'Savings added'].concat(catLabels), rows: rows, catCount: catLabels.length };
+  }
+
+  function buildWorkbook(){
+    var p = buildSheetPayload();
+    var wb = XLSX.utils.book_new();
+    var money = function(from, count){ var a = []; for(var i = 0; i < count; i++) a.push(from + i); return a; };
+    var tidy = function(rows, acctIdx, cycleIdx){
+      return rows.map(function(r){
+        r = r.slice();
+        r[acctIdx] = r[acctIdx] === 'cash' ? 'Cash' : 'Bank';
+        if(cycleIdx !== undefined) r[cycleIdx] = r[cycleIdx] === 'yearly' ? 'Yearly' : 'Monthly';
+        return r;
+      });
+    };
+
+    var sum = buildMonthlySummaryRows();
+    XLSX.utils.book_append_sheet(wb, xlsxSheet(sum.headers, sum.rows, [], money(1, 4 + sum.catCount), [18, 12, 12, 12, 14].concat(sum.headers.slice(5).map(function(){ return 14; }))), 'Monthly summary');
+
+    var txRows = state.transactions.slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).map(function(t){
+      var isExp = t.type === 'expense';
+      return [t.date, isExp ? 'Expense' : 'Income', isExp ? (CAT_MAP[t.category] ? CAT_MAP[t.category].label : 'Uncategorized') : '', t.amount, t.account === 'cash' ? 'Cash' : 'Bank', t.note || '', isExp ? '' : (t.source || 'Income'), t.needsReview ? 'yes' : ''];
+    });
+    XLSX.utils.book_append_sheet(wb, xlsxSheet(['Date', 'Type', 'Category', 'Amount', 'Account', 'Note', 'Source', 'Needs review'], txRows, [0], [3], [12, 9, 16, 11, 9, 32, 22, 12]), 'Transactions');
+
+    var curTotals = computeMonthTotals(new Date().toISOString().slice(0,7)).catTotals;
+    var budgetRows = CATEGORIES.map(function(c){
+      var b = state.budgets[c.key] || 0, spent = curTotals[c.key] || 0;
+      return [c.label, b, spent, b > 0 ? b - spent : ''];
+    });
+    var expectedTotal = currentExpectedExpensesTotal(), budgetTotal = currentTotalBudget();
+    budgetRows.push(['', '', '', ''], ['Monthly salary', state.salary, '', ''], ['Total budgeted', budgetTotal, '', ''], ['Expected extras', expectedTotal, '', ''], ['Left to allocate', state.salary - budgetTotal - expectedTotal, '', '']);
+    XLSX.utils.book_append_sheet(wb, xlsxSheet(['Category', 'Monthly budget', 'Spent this month', 'Left this month'], budgetRows, [], [1, 2, 3], [18, 15, 16, 16]), 'Budgets');
+
+    XLSX.utils.book_append_sheet(wb, xlsxSheet(['Description', 'Amount'], p.expected, [], [1], [32, 12]), 'Expected extras');
+    XLSX.utils.book_append_sheet(wb, xlsxSheet(['Name', 'Type', 'Cycle', 'Amount', 'Monthly cost', 'Billing day', 'Account', 'Note'], tidy(p.recurring, 6, 2), [], [3, 4], [22, 13, 9, 11, 13, 11, 9, 24]), 'Subscriptions & utilities');
+    XLSX.utils.book_append_sheet(wb, xlsxSheet(['Date', 'Account', 'Amount', 'Note'], p.savings, [0], [2], [12, 20, 12, 30]), 'Savings');
+    XLSX.utils.book_append_sheet(wb, xlsxSheet(['Date', 'Person', 'Type', 'Amount', 'Change in amount owed', 'Account', 'Note'], tidy(p.loans, 5), [0], [3, 4], [12, 18, 9, 11, 21, 9, 28]), 'Loans');
+    XLSX.utils.book_append_sheet(wb, xlsxSheet(['Date', 'Tour', 'Type', 'Category', 'Amount', 'Change in amount owed', 'Account', 'Note'], tidy(p.tours, 6), [0], [4, 5], [12, 22, 11, 16, 11, 21, 9, 28]), 'Tours');
+    return wb;
+  }
+
+  document.getElementById('exportXlsxBtn').addEventListener('click', function(){
+    var btn = this, statusEl = document.getElementById('xlsxStatus');
+    btn.disabled = true;
+    statusEl.style.display = 'block';
+    statusEl.textContent = 'Building Excel file...';
+    loadXLSX().then(function(){
+      XLSX.writeFile(buildWorkbook(), 'finance-tracker-' + todayStr() + '.xlsx');
+      statusEl.style.display = 'none';
+      toast('Excel file downloaded');
+    }).catch(function(err){
+      statusEl.textContent = 'Could not build the file: ' + (err && err.message ? err.message : 'unknown error');
+    }).finally(function(){ btn.disabled = false; });
   });
 
   // ---------- Init ----------
